@@ -1,0 +1,7 @@
+node_modules/
+.env
+dist/
+*.log
+
+# Local-only planning/workflow docs — kept on disk, never pushed.
+docs/superpowers/
