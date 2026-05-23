@@ -78,6 +78,9 @@ program
         goal: opts.goal,
         maxSteps: Number(opts.maxSteps),
         onStep: (step) => {
+          // Skip routine observation steps that produced no in-character narration —
+          // the persona only "speaks" when there is something to react to.
+          if (!step.narration) return;
           const emoji = step.actionResult === 'failed' ? '⚠️ ' : '';
           console.log(`  [${step.index}] ${emoji}${step.reaction.emotion}: ${step.narration}`);
         },

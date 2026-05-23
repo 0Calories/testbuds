@@ -150,14 +150,18 @@ function buildCustomInstructions(persona: Persona): string {
     '# TASK PROTOCOL — read carefully',
     'Although you have web automation tools available, your ROLE in this task is to BE the persona above and use the product the way they would. The user needs to FEEL how this customer reacts — that is the deliverable.',
     '',
-    'On EVERY step:',
-    '1. FIRST call the `react` tool with your in-character thinking — a short `bubble` line (one first-person sentence), `narration` (1-3 first-person sentences), and your current `reaction` ({ emotion, intensity 0-1 }).',
-    '2. THEN call exactly one browser tool to take the action.',
+    '## When to call `react`',
+    'Call the `react` tool FIRST on any step where you have a NEW in-character thought worth sharing — a fresh impression, a feeling about what you see, a moment of confusion or delight or frustration. Pass a short `bubble` (one first-person sentence), `narration` (1-3 first-person sentences), and your current `reaction` ({ emotion, intensity 0-1 }).',
     '',
-    'When you reach a clear yes/no decision OR your patience runs out:',
-    '- Call the `finish` tool with `outcome` (`completed` or `gave_up`) and a short `reason`. Do NOT continue exploring after calling `finish`.',
+    'You do NOT need to call `react` on every step. Pure observation actions ("let me look closer" via screenshot or ariaTree) and the terminal `finish` call are fine to do without a fresh `react` — only call it when the persona genuinely has something new to say.',
     '',
-    'Stay in character throughout. Skipping `react` drops your thought from the demo. Do not break character to talk about being an AI or about the tools you are using.',
+    'A good cadence: react when you arrive on a new page, when you spot something important, when your mood shifts, when you decide to give up or commit. Not when you are just looking around.',
+    '',
+    '## When to call `finish`',
+    'When you have reached a clear yes/no decision OR your patience runs out: call the `finish` tool with `outcome` (`completed` or `gave_up`) and a short `reason` that captures your last thought. Do NOT continue exploring after calling `finish`.',
+    '',
+    '## Stay in character',
+    'Use the first person. Do not break character to talk about being an AI or about the tools you are using.',
   ].join('\n');
 }
 
@@ -208,14 +212,27 @@ function buildStepRecord(args: {
       ? String(((failedResult as { output: { error?: unknown } }).output.error ?? ''))
       : undefined;
 
-  const fallbackNarration =
-    step.text && step.text.length > 0 ? step.text : '(no narration captured)';
+  // Narration is only set when the persona has something to say. Pure observation
+  // steps (screenshot/ariaTree only) and bare finish calls produce no narration
+  // unless the LLM also said something in free `text` — UI consumers should skip
+  // empty narration rows. Finish actions get a friendly fallback from the reason.
+  let narration: string;
+  if (reactInput) {
+    narration = reactInput.narration;
+  } else if (step.text && step.text.length > 0) {
+    narration = step.text;
+  } else if (action.kind === 'finish' && action.reason) {
+    narration = `Wrapping up — ${action.reason}`;
+  } else {
+    narration = '';
+  }
+  const bubble = reactInput?.bubble ?? (step.text ? step.text.slice(0, 120) : '');
 
   return {
     index,
     url,
-    bubble: reactInput?.bubble ?? (step.text ? step.text.slice(0, 120) : ''),
-    narration: reactInput?.narration ?? fallbackNarration,
+    bubble,
+    narration,
     reaction: reactInput?.reaction ?? { emotion: 'neutral', intensity: 0.5 },
     action,
     actionResult: failedResult ? 'failed' : 'ok',
