@@ -1,5 +1,6 @@
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
+import { join } from 'node:path';
 import type { Stagehand } from '@browserbasehq/stagehand';
 import type { eventWithTime } from '@rrweb/types';
 
@@ -7,18 +8,41 @@ const require_ = createRequire(import.meta.url);
 const log = (...args: unknown[]) => console.log('[testbuds/recorder]', ...args);
 
 const BINDING_NAME = '__testbudsRrwebEmit';
+const BUNDLE_REL = 'rrweb/dist/record/rrweb-record.min.js';
 
 /**
  * Read the rrweb recorder bundle once, lazily. Injected into every new
  * document via CDP `Page.addScriptToEvaluateOnNewDocument` (main world, so
  * the binding installed by `Runtime.addBinding` is on the same `window`).
+ *
+ * Resolution is defensive because Next.js's RSC bundler rewrites
+ * `import.meta.url` to a virtual `(rsc)/...` path that breaks require.resolve.
+ * `serverExternalPackages: ['rrweb']` in next.config.mjs is the primary fix;
+ * the cwd-based fallback below is a belt-and-braces safety net so this works
+ * regardless of how the host bundler treats us.
  */
 let bundleCache: string | undefined;
 function getRecorderBundle(): string {
   if (bundleCache) return bundleCache;
-  const path = require_.resolve('rrweb/dist/record/rrweb-record.min.js');
-  bundleCache = readFileSync(path, 'utf8');
-  return bundleCache;
+  const candidates = [
+    () => require_.resolve(BUNDLE_REL),
+    () => join(process.cwd(), 'node_modules', BUNDLE_REL),
+  ];
+  const errors: string[] = [];
+  for (const candidate of candidates) {
+    try {
+      const path = candidate();
+      if (existsSync(path)) {
+        bundleCache = readFileSync(path, 'utf8');
+        log(`recorder bundle resolved at ${path} (${bundleCache.length} bytes)`);
+        return bundleCache;
+      }
+      errors.push(`${path} does not exist`);
+    } catch (err) {
+      errors.push((err as Error).message);
+    }
+  }
+  throw new Error(`Cannot locate rrweb recorder bundle. Tried:\n  ${errors.join('\n  ')}`);
 }
 
 /**
