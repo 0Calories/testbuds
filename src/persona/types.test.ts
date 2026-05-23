@@ -3,8 +3,9 @@ import { PersonaSchema } from './types';
 
 const valid = {
   slug: 'test-persona',
+  name: 'Test Archetype',
   segment: 'B2C' as const,
-  identity: { name: 'Jane', role: 'Shopper', context: 'Browsing on a laptop.' },
+  identity: { role: 'Shopper', context: 'Browsing on a laptop.' },
   jobToBeDone: 'Decide whether to buy.',
   motivations: ['Save money'],
   painPoints: ['Hidden fees'],

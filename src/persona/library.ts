@@ -3,9 +3,9 @@ import type { Persona } from './types';
 export const personaLibrary: Persona[] = [
   {
     slug: 'skeptical-bargain-hunter',
+    name: 'Skeptical Bargain-Hunter',
     segment: 'B2C',
     identity: {
-      name: 'Dana Pryce',
       role: 'Budget-conscious online shopper',
       context: 'Comparing several options before spending any money.',
     },
@@ -24,9 +24,9 @@ export const personaLibrary: Persona[] = [
   },
   {
     slug: 'goal-driven-self-improver',
+    name: 'Goal-Driven Self-Improver',
     segment: 'B2C',
     identity: {
-      name: 'Marcus Hale',
       role: 'Motivated individual pursuing a personal goal',
       context: 'Looking for a product that fits one specific life goal.',
     },
@@ -45,9 +45,9 @@ export const personaLibrary: Persona[] = [
   },
   {
     slug: 'distracted-mobile-browser',
+    name: 'Distracted Mobile Browser',
     segment: 'B2C',
     identity: {
-      name: 'Priya Anand',
       role: 'Casual visitor with low attention',
       context: 'Glancing at the product between other things, easily distracted.',
     },
@@ -66,9 +66,9 @@ export const personaLibrary: Persona[] = [
   },
   {
     slug: 'time-poor-evaluator',
+    name: 'Time-Poor Evaluator',
     segment: 'B2B',
     identity: {
-      name: 'Sam Okafor',
       role: 'Operations manager evaluating tools',
       context: 'Has five minutes to decide if a tool is worth a demo call.',
     },
@@ -87,9 +87,9 @@ export const personaLibrary: Persona[] = [
   },
   {
     slug: 'technical-gatekeeper-cto',
+    name: 'Technical Gatekeeper (CTO)',
     segment: 'B2B',
     identity: {
-      name: 'Lena Vásquez',
       role: 'CTO assessing a tool for the engineering org',
       context: 'Scrutinising whether a tool is safe and sound enough to adopt.',
     },
@@ -108,9 +108,9 @@ export const personaLibrary: Persona[] = [
   },
   {
     slug: 'roi-driven-buyer',
+    name: 'ROI-Driven Buyer',
     segment: 'B2B',
     identity: {
-      name: 'Tom Reilly',
       role: 'Department lead who owns a budget',
       context: 'Needs to justify any purchase with hard numbers.',
     },

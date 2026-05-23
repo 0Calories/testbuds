@@ -5,9 +5,10 @@ export type Level = z.infer<typeof LevelSchema>;
 
 export const PersonaSchema = z.object({
   slug: z.string().min(1),
+  /** Display name of the archetype (e.g. "Skeptical Bargain-Hunter"). Not a personal name. */
+  name: z.string().min(1),
   segment: z.enum(['B2C', 'B2B']),
   identity: z.object({
-    name: z.string().min(1),
     role: z.string().min(1),
     context: z.string().min(1),
   }),

@@ -6,8 +6,8 @@ describe('compilePersona', () => {
   const persona = getPersona('skeptical-bargain-hunter')!;
   const prompt = compilePersona(persona);
 
-  it('includes the persona name and role', () => {
-    expect(prompt).toContain('Dana Pryce');
+  it('includes the persona archetype name and role', () => {
+    expect(prompt).toContain('Skeptical Bargain-Hunter');
     expect(prompt).toContain('Budget-conscious online shopper');
   });
 

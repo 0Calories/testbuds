@@ -35,7 +35,7 @@ program
   .description('List available personas.')
   .action(() => {
     for (const p of personaLibrary) {
-      console.log(`${p.slug}  (${p.segment})  — ${p.identity.name}, ${p.identity.role}`);
+      console.log(`${p.slug}  (${p.segment})  — ${p.name}, ${p.identity.role}`);
     }
   });
 
@@ -68,7 +68,7 @@ program
 
     const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
-    console.log(`\n▶ ${persona.identity.name} is visiting ${opts.url}\n`);
+    console.log(`\n▶ ${persona.name} is visiting ${opts.url}\n`);
 
     const result = await executeRun(
       {

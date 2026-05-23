@@ -65,7 +65,7 @@ export async function synthesizeVerdict(
 ): Promise<Verdict> {
   const model = deps.model ?? 'claude-opus-4-7';
   const userText = [
-    `Persona: ${input.persona.identity.name} — ${input.persona.identity.role}`,
+    `Persona: ${input.persona.name} — ${input.persona.identity.role}`,
     `Goal for the run: ${input.goal}`,
     '',
     'Full run transcript:',
