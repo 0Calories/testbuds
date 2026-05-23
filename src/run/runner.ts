@@ -30,7 +30,11 @@ export interface ExecuteRunInput {
   targetUrl: string;
   goal: string;
   maxSteps?: number;
+  /** Viewport for the agent's browser session. Defaults to 'desktop'. */
+  viewport?: 'desktop' | 'mobile';
   onStep?: (step: Step) => void;
+  /** Fires once the Stagehand session exists, before auth/navigation. */
+  onBrowserReady?: (info: { sessionId: string | undefined }) => void | Promise<void>;
 }
 
 export interface ExecuteRunDeps {
@@ -64,6 +68,17 @@ export async function executeRun(
   const stagehand = await deps.createStagehand();
 
   try {
+    // Apply mobile viewport before any navigation, if requested.
+    if (input.viewport === 'mobile') {
+      const page = stagehand.context?.activePage();
+      if (page) await page.setViewportSize(390, 844);
+    }
+
+    // Surface the Browserbase session id to the caller so they can fetch the Live View URL.
+    await input.onBrowserReady?.({
+      sessionId: (stagehand as unknown as { browserbaseSessionID?: string }).browserbaseSessionID,
+    });
+
     // 1. Auth
     await establishAuth(makeAuthDriver(stagehand), input.connection);
 
@@ -98,7 +113,7 @@ export async function executeRun(
 
     try {
       await agent.execute({
-        instruction: input.goal,
+        instruction: framedInstruction(input.goal),
         maxSteps: input.maxSteps ?? 25,
         signal: abort.signal,
         callbacks: {
@@ -135,6 +150,26 @@ export async function executeRun(
   } finally {
     await stagehand.close();
   }
+}
+
+/**
+ * Re-frame the user-supplied goal so the agent treats it as a *decision question*
+ * rather than a task to complete. Without this, Stagehand's master prompt
+ * interprets the instruction as "accomplish X" and the agent will dutifully sign
+ * up / click buy / hand over an email even when the persona wouldn't.
+ */
+function framedInstruction(goal: string): string {
+  return [
+    'You are giving REAL customer feedback as the persona described in <customInstructions>.',
+    '',
+    'The user wants you to answer the following, IN CHARACTER, by using the product the way the persona would:',
+    `> ${goal}`,
+    '',
+    'Important: this is not a task to be completed — it is a question to be answered honestly.',
+    'Explore the product enough to ground your decision (scan, scroll, look for the proof your persona cares about). Then decide the way the persona genuinely would, and call `finish` with that decision. Both yes and no are valid outcomes. Bailing is also a valid outcome — bail if the persona would bail.',
+    '',
+    'Do NOT complete the action implied by the question (sign up, buy, etc.) unless the persona would actually do it after grounded evaluation. A premature "yes" is bad feedback.',
+  ].join('\n');
 }
 
 /**

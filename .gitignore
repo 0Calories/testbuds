@@ -3,5 +3,9 @@ node_modules/
 dist/
 *.log
 
+# Next.js
+.next/
+next-env.d.ts
+
 # Local-only planning/workflow docs — kept on disk, never pushed.
 docs/superpowers/
