@@ -5,6 +5,7 @@ const valid = {
   slug: 'test-persona',
   name: 'Test Archetype',
   segment: 'B2C' as const,
+  costume: 'bags' as const,
   identity: { role: 'Shopper', context: 'Browsing on a laptop.' },
   jobToBeDone: 'Decide whether to buy.',
   motivations: ['Save money'],

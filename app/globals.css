@@ -1,0 +1,59 @@
+@import "tailwindcss";
+
+@theme {
+  /* Paper / surfaces */
+  --color-paper: #F4EEE2;
+  --color-paper-deep: #EBE3D2;
+
+  /* Ink (text) */
+  --color-ink: #1C1A14;
+  --color-ink-2: #3B362B;
+  --color-ink-3: #6B6453;
+  --color-ink-4: #A39C8A;
+
+  /* Lines */
+  --color-line: #D9D1BD;
+  --color-line-soft: #E4DCC7;
+
+  /* Brand */
+  --color-bud: #9CC182;
+  --color-bud-deep: #6E9758;
+  --color-bud-soft: #D2E2C0;
+  --color-bud-cream: #EDF2DE;
+
+  /* Accents */
+  --color-coral: #DC6B5A;
+  --color-coral-soft: #F2C7BE;
+  --color-butter: #F0C557;
+  --color-butter-soft: #F8E4A5;
+  --color-sky: #7AAFCB;
+  --color-sky-soft: #CDE0EA;
+  --color-plum: #7A5A8A;
+
+  /* Fonts — wired from next/font in layout.tsx */
+  --font-display: var(--font-geologica), -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-mono: var(--font-mplus), 'Geologica', sans-serif;
+  --font-sans: var(--font-geologica), -apple-system, BlinkMacSystemFont, sans-serif;
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+body {
+  background: var(--color-paper);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+}
+
+/* Brand helpers from the design source */
+.display { font-family: var(--font-display); letter-spacing: -0.025em; }
+.mono { font-family: var(--font-mono); font-weight: 500; }
+
+/* Shared keyframes from the design source */
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.45; }
+}
+@keyframes bounce {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-3px); }
+}

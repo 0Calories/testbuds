@@ -30,7 +30,11 @@ export interface ExecuteRunInput {
   targetUrl: string;
   goal: string;
   maxSteps?: number;
+  /** Viewport for the agent's browser session. Defaults to 'desktop'. */
+  viewport?: 'desktop' | 'mobile';
   onStep?: (step: Step) => void;
+  /** Fires once the Stagehand session exists, before auth/navigation. */
+  onBrowserReady?: (info: { sessionId: string | undefined }) => void | Promise<void>;
 }
 
 export interface ExecuteRunDeps {
@@ -64,6 +68,17 @@ export async function executeRun(
   const stagehand = await deps.createStagehand();
 
   try {
+    // Apply mobile viewport before any navigation, if requested.
+    if (input.viewport === 'mobile') {
+      const page = stagehand.context?.activePage();
+      if (page) await page.setViewportSize(390, 844);
+    }
+
+    // Surface the Browserbase session id to the caller so they can fetch the Live View URL.
+    await input.onBrowserReady?.({
+      sessionId: (stagehand as unknown as { browserbaseSessionID?: string }).browserbaseSessionID,
+    });
+
     // 1. Auth
     await establishAuth(makeAuthDriver(stagehand), input.connection);
 
