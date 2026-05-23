@@ -84,6 +84,7 @@ function statusLabel(run: RunRecord, elapsed: string): { label: string; kind: 'l
 export default function RunViewPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const [run, setRun] = useState<RunRecord>();
+  const [notFound, setNotFound] = useState(false);
   const [, setTick] = useState(0);
 
   // Poll the run state.
@@ -94,6 +95,10 @@ export default function RunViewPage({ params }: { params: Promise<{ id: string }
       try {
         const res = await fetch(`/api/runs/${id}`);
         if (!active) return;
+        if (res.status === 404) {
+          setNotFound(true);
+          return;
+        }
         if (res.ok) {
           const data = (await res.json()) as { run: RunRecord };
           setRun(data.run);
@@ -116,6 +121,44 @@ export default function RunViewPage({ params }: { params: Promise<{ id: string }
     const i = setInterval(() => setTick((n) => n + 1), 1000);
     return () => clearInterval(i);
   }, []);
+
+  if (notFound) {
+    return (
+      <div
+        style={{
+          minHeight: '100vh',
+          background: 'var(--color-paper)',
+          display: 'flex',
+          flexDirection: 'column',
+        }}
+      >
+        <AppHeader section="Runs" title="Run not found" />
+        <div
+          style={{
+            flex: 1,
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: 14,
+            color: 'var(--color-ink-3)',
+            padding: 24,
+            textAlign: 'center',
+          }}
+        >
+          <div style={{ fontSize: 15, color: 'var(--color-ink-2)' }}>
+            We couldn’t find a run with id <code className="mono">{id}</code>.
+          </div>
+          <div style={{ fontSize: 13, color: 'var(--color-ink-4)' }}>
+            It may have expired (runs live in memory and don’t survive a server restart).
+          </div>
+          <button type="button" style={btnPrimary()} onClick={() => (window.location.href = '/')}>
+            Start a new run
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   if (!run) {
     return (
