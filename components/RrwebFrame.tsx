@@ -28,9 +28,13 @@ export function RrwebFrame({
   runId,
   onReady,
   onUnavailable,
-  bootstrapTimeoutMs = 8000,
+  // Generous timeout: agent startup (Browserbase session boot + auth +
+  // page.goto) can take 20–30s on slow sites before the recorder has a real
+  // document to snapshot. We'd rather wait quietly than prematurely fall back.
+  bootstrapTimeoutMs = 60000,
 }: RrwebFrameProps) {
   const hostRef = useRef<HTMLDivElement>(null);
+  const [bootstrapped, setBootstrapped] = useState(false);
   const [bootstrapFailed, setBootstrapFailed] = useState(false);
 
   // Hold the latest callbacks in a ref so the SSE effect doesn't re-fire when
@@ -80,6 +84,7 @@ export function RrwebFrame({
       pending = [];
       if (bootstrapTimer) clearTimeout(bootstrapTimer);
       installFitToHost();
+      setBootstrapped(true);
       onReadyRef.current?.();
     }
 
@@ -200,18 +205,46 @@ export function RrwebFrame({
   }
 
   return (
-    <div
-      ref={hostRef}
-      style={{
-        width: '100%',
-        height: '100%',
-        background: '#fff',
-        // rrweb's replay iframe sizes itself to the recorded viewport. We
-        // scale-to-fit so it always fills our frame regardless of the agent
-        // viewport size. The CSS variables let us swap the fit per-viewport.
-        overflow: 'hidden',
-        position: 'relative',
-      }}
-    />
+    <div style={{ width: '100%', height: '100%', position: 'relative' }}>
+      <div
+        ref={hostRef}
+        style={{
+          width: '100%',
+          height: '100%',
+          background: '#fff',
+          overflow: 'hidden',
+          position: 'relative',
+        }}
+      />
+      {!bootstrapped && (
+        <div
+          style={{
+            position: 'absolute',
+            inset: 0,
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: 10,
+            background: 'var(--color-paper-deep)',
+            color: 'var(--color-ink-3)',
+            fontSize: 13,
+            pointerEvents: 'none',
+          }}
+        >
+          <span style={{ display: 'inline-flex', gap: 4 }}>
+            <span style={{ width: 7, height: 7, borderRadius: '50%', background: 'var(--color-ink-4)', animation: 'bounce 1s infinite' }} />
+            <span style={{ width: 7, height: 7, borderRadius: '50%', background: 'var(--color-ink-4)', animation: 'bounce 1s infinite 0.15s' }} />
+            <span style={{ width: 7, height: 7, borderRadius: '50%', background: 'var(--color-ink-4)', animation: 'bounce 1s infinite 0.3s' }} />
+          </span>
+          <span className="mono" style={{ fontSize: 11, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--color-ink-4)' }}>
+            Connecting the bud
+          </span>
+          <span style={{ fontSize: 12, color: 'var(--color-ink-4)' }}>
+            The agent is starting its browser session…
+          </span>
+        </div>
+      )}
+    </div>
   );
 }

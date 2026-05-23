@@ -1,10 +1,8 @@
 import { existsSync, readFileSync } from 'node:fs';
-import { createRequire } from 'node:module';
 import { join } from 'node:path';
 import type { Stagehand } from '@browserbasehq/stagehand';
 import type { eventWithTime } from '@rrweb/types';
 
-const require_ = createRequire(import.meta.url);
 const log = (...args: unknown[]) => console.log('[testbuds/recorder]', ...args);
 
 const BINDING_NAME = '__testbudsRrwebEmit';
@@ -15,34 +13,22 @@ const BUNDLE_REL = 'rrweb/dist/record/rrweb-record.min.js';
  * document via CDP `Page.addScriptToEvaluateOnNewDocument` (main world, so
  * the binding installed by `Runtime.addBinding` is on the same `window`).
  *
- * Resolution is defensive because Next.js's RSC bundler rewrites
- * `import.meta.url` to a virtual `(rsc)/...` path that breaks require.resolve.
- * `serverExternalPackages: ['rrweb']` in next.config.mjs is the primary fix;
- * the cwd-based fallback below is a belt-and-braces safety net so this works
- * regardless of how the host bundler treats us.
+ * Resolved relative to process.cwd() rather than via createRequire/import.meta
+ * — Next.js's RSC bundler mangles import.meta.url, and webpack also flags
+ * `createRequire(import.meta.url)` as a critical dynamic dependency. cwd() is
+ * always the project root in both dev and standard Node deploys, and rrweb is
+ * marked as a serverExternalPackage so node_modules/rrweb stays untouched.
  */
 let bundleCache: string | undefined;
 function getRecorderBundle(): string {
   if (bundleCache) return bundleCache;
-  const candidates = [
-    () => require_.resolve(BUNDLE_REL),
-    () => join(process.cwd(), 'node_modules', BUNDLE_REL),
-  ];
-  const errors: string[] = [];
-  for (const candidate of candidates) {
-    try {
-      const path = candidate();
-      if (existsSync(path)) {
-        bundleCache = readFileSync(path, 'utf8');
-        log(`recorder bundle resolved at ${path} (${bundleCache.length} bytes)`);
-        return bundleCache;
-      }
-      errors.push(`${path} does not exist`);
-    } catch (err) {
-      errors.push((err as Error).message);
-    }
+  const path = join(process.cwd(), 'node_modules', BUNDLE_REL);
+  if (!existsSync(path)) {
+    throw new Error(`rrweb recorder bundle not found at ${path}. Did pnpm install run?`);
   }
-  throw new Error(`Cannot locate rrweb recorder bundle. Tried:\n  ${errors.join('\n  ')}`);
+  bundleCache = readFileSync(path, 'utf8');
+  log(`recorder bundle resolved at ${path} (${bundleCache.length} bytes)`);
+  return bundleCache;
 }
 
 /**
