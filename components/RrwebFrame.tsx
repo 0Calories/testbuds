@@ -76,6 +76,7 @@ export function RrwebFrame({
       r.startLive(pending[0]?.timestamp);
       // Bare Replayer doesn't render UI chrome; the replay iframe is now in `host`.
       replayer = r;
+      console.log(`[testbuds/rrweb-client] Replayer bootstrapped with ${pending.length} events`);
       pending = [];
       if (bootstrapTimer) clearTimeout(bootstrapTimer);
       installFitToHost();
@@ -113,16 +114,22 @@ export function RrwebFrame({
       // Dynamic import — see comment above.
       const rrweb = await import('rrweb');
       if (cancelled) return;
-
+      console.log('[testbuds/rrweb-client] opening SSE for run', runId);
       const source = new EventSource(`/api/runs/${runId}/events`);
+      let receivedAny = false;
 
       bootstrapTimer = setTimeout(() => {
         if (replayer || cancelled) return;
+        console.warn(`[testbuds/rrweb-client] bootstrap timeout after ${bootstrapTimeoutMs}ms (receivedAny=${receivedAny}, pending=${pending.length})`);
         setBootstrapFailed(true);
         onUnavailableRef.current?.();
       }, bootstrapTimeoutMs);
 
       source.onmessage = (m) => {
+        if (!receivedAny) {
+          receivedAny = true;
+          console.log('[testbuds/rrweb-client] first SSE message arrived');
+        }
         let parsed: { kind: 'event'; event: eventWithTime } | { kind: 'end' };
         try {
           parsed = JSON.parse(m.data);
@@ -130,6 +137,7 @@ export function RrwebFrame({
           return;
         }
         if (parsed.kind === 'end') {
+          console.log('[testbuds/rrweb-client] stream ended');
           // Freeze on the last frame: tear down the EventSource but leave the
           // replayer alone so its rendered DOM stays on screen.
           source.close();
@@ -137,7 +145,7 @@ export function RrwebFrame({
         }
         if (replayer) {
           try { replayer.addEvent(parsed.event); } catch (err) {
-            console.warn('[RrwebFrame] addEvent failed:', err);
+            console.warn('[testbuds/rrweb-client] addEvent failed:', err);
           }
         } else {
           pending.push(parsed.event);

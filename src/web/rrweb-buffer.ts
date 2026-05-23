@@ -33,6 +33,8 @@ globalForBuf.__testbudsRrwebBuffers = buffers;
 /** rrweb event type for FullSnapshot. See @rrweb/types EventType. */
 const FULL_SNAPSHOT = 2;
 
+const log = (...args: unknown[]) => console.log('[testbuds/rrweb-buffer]', ...args);
+
 function getOrCreate(runId: string): RunBuffer {
   let buf = buffers.get(runId);
   if (!buf) {
@@ -49,11 +51,14 @@ function getOrCreate(runId: string): RunBuffer {
 /** Push one rrweb event into the buffer and notify live subscribers. */
 export function pushEvent(runId: string, event: eventWithTime): void {
   const buf = getOrCreate(runId);
+  const wasEmpty = !buf.snapshot && buf.events.length === 0;
   if (event.type === FULL_SNAPSHOT) {
     buf.snapshot = event;
     buf.events = [];
+    log(`run ${runId.slice(0, 8)} got FullSnapshot (events emitter listeners=${buf.emitter.listenerCount('event')})`);
   } else {
     buf.events.push(event);
+    if (wasEmpty) log(`run ${runId.slice(0, 8)} first event arrived (type=${event.type})`);
   }
   buf.emitter.emit('event', event);
 }
@@ -99,6 +104,9 @@ export function subscribe(
   const buf = getOrCreate(runId);
   buf.emitter.on('event', onEvent);
   buf.emitter.on('end', onEnd);
+  log(
+    `subscribe run=${runId.slice(0, 8)} snapshot=${!!buf.snapshot} backlog=${buf.events.length} ended=${buf.ended}`,
+  );
   return {
     snapshot: buf.snapshot,
     backlog: [...buf.events],
