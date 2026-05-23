@@ -1,6 +1,8 @@
 import { subscribe } from '@/src/web/rrweb-buffer';
 import type { eventWithTime } from '@rrweb/types';
 
+const log = (...args: unknown[]) => console.log('[testbuds/sse]', ...args);
+
 /**
  * Server-Sent Events stream of rrweb events for one run.
  *
@@ -23,16 +25,26 @@ export async function GET(
 ) {
   const { id } = await params;
   const encoder = new TextEncoder();
+  const openedAt = Date.now();
+  let writeCount = 0;
 
   const stream = new ReadableStream({
     start(controller) {
       let closed = false;
       const write = (chunk: string) => {
         if (closed) return;
-        try { controller.enqueue(encoder.encode(chunk)); } catch { closed = true; }
+        try {
+          controller.enqueue(encoder.encode(chunk));
+          writeCount++;
+        } catch { closed = true; }
       };
-      const sendEvent = (event: eventWithTime) =>
+      const sendEvent = (event: eventWithTime) => {
+        const before = writeCount;
         write(`data: ${JSON.stringify({ kind: 'event', event })}\n\n`);
+        if (before === 0) {
+          log(`first event written to client for run=${id.slice(0, 8)} after ${Date.now() - openedAt}ms`);
+        }
+      };
       const sendEnd = () => {
         write(`data: ${JSON.stringify({ kind: 'end' })}\n\n`);
         try { controller.close(); } catch { /* already closed */ }
@@ -43,6 +55,7 @@ export async function GET(
       write(`retry: 2000\n\n`);
 
       const sub = subscribe(id, sendEvent, sendEnd);
+      log(`opened run=${id.slice(0, 8)} snapshot=${!!sub.snapshot} backlog=${sub.backlog.length}`);
       if (sub.snapshot) sendEvent(sub.snapshot);
       for (const e of sub.backlog) sendEvent(e);
       if (sub.ended) sendEnd();
@@ -53,6 +66,7 @@ export async function GET(
         clearInterval(keepalive);
         sub.unsubscribe();
         closed = true;
+        log(`closed run=${id.slice(0, 8)} total writes=${writeCount}`);
       };
 
       request.signal.addEventListener('abort', cleanup);
@@ -64,7 +78,10 @@ export async function GET(
       'content-type': 'text/event-stream; charset=utf-8',
       'cache-control': 'no-cache, no-transform',
       'connection': 'keep-alive',
-      'x-accel-buffering': 'no', // disables nginx buffering if present
+      // Explicitly identity-encoded so no compression layer (Next compress,
+      // nginx, CDN) can buffer the stream waiting for a flush window.
+      'content-encoding': 'identity',
+      'x-accel-buffering': 'no',
     },
   });
 }

@@ -82,6 +82,12 @@ export interface RecorderHandle {
   dispose: () => Promise<void>;
 }
 
+/** Best-effort peek at the type field of a JSON event payload without full parse. */
+function tryGetType(payload: string): string {
+  const m = /^\{"type":(\d+)/.exec(payload);
+  return m ? m[1]! : '?';
+}
+
 /**
  * Install the rrweb recorder via CDP directly (skipping Stagehand's
  * addInitScript wrapper, which doesn't surface the world parameter we need).
@@ -98,6 +104,7 @@ export async function installRecorder(
   stagehand: Stagehand,
   onEvent: (event: eventWithTime) => void,
 ): Promise<RecorderHandle> {
+  const installedAt = Date.now();
   log('install starting');
   const page = stagehand.context?.activePage() as unknown as CdpPageLike | undefined;
   if (!page) throw new Error('installRecorder: no active page');
@@ -116,8 +123,10 @@ export async function installRecorder(
   session.on<{ name?: string; payload?: string; executionContextId?: number }>('Runtime.bindingCalled', (p) => {
     if (p?.name !== BINDING_NAME || typeof p.payload !== 'string') return;
     eventCount++;
-    if (eventCount === 1 || eventCount === 10 || eventCount % 100 === 0) {
-      log(`event #${eventCount} (executionContextId=${p.executionContextId})`);
+    if (eventCount === 1) {
+      log(`FIRST event received from page after ${Date.now() - installedAt}ms (type=${tryGetType(p.payload)})`);
+    } else if (eventCount === 10 || eventCount === 100 || eventCount % 500 === 0) {
+      log(`event #${eventCount}`);
     }
     let parsed: eventWithTime;
     try { parsed = JSON.parse(p.payload) as eventWithTime; } catch (err) {
