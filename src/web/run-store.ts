@@ -27,8 +27,14 @@ export interface CreateRunInput {
   viewport?: ViewportMode;
 }
 
-// Module-level singleton — fine for a single-process demo.
-const runs = new Map<string, RunRecord>();
+// Module-level singleton — parked on globalThis so Next.js dev-mode HMR
+// (which re-imports modules between requests) doesn't wipe it between the POST
+// that creates a run and the GET that polls for it.
+const globalForRuns = globalThis as unknown as {
+  __testbudsRunStore?: Map<string, RunRecord>;
+};
+const runs: Map<string, RunRecord> = globalForRuns.__testbudsRunStore ?? new Map();
+globalForRuns.__testbudsRunStore = runs;
 
 export function createRun(input: CreateRunInput): RunRecord {
   const record: RunRecord = {

@@ -70,7 +70,10 @@ export function startRun(input: StartRunInput): string {
     { anthropic, createStagehand },
   )
     .then((result) => completeRun(record.id, result.verdict))
-    .catch((err) => failRun(record.id, err instanceof Error ? err.message : String(err)));
+    .catch((err) => {
+      console.error('[run-executor] Run failed:', err);
+      failRun(record.id, err instanceof Error ? err.message : String(err));
+    });
 
   return record.id;
 }
