@@ -56,7 +56,9 @@ ${getRecorderBundle()}
         },
         recordCanvas: true,
         collectFonts: true,
-        checkoutEveryNms: 30000,
+        // Intentionally NO checkoutEveryNms — we want ONE FullSnapshot per page
+        // load, not periodic ones. Each navigation produces a fresh FullSnapshot
+        // naturally because the init script re-runs in the new document.
       });
       console.log('[testbuds] rrweb.record() started');
     } catch (err) {

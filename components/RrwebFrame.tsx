@@ -59,14 +59,42 @@ export function RrwebFrame({
     let cleanupSource: (() => void) | undefined;
     let resizeObserver: ResizeObserver | undefined;
 
-    // rrweb Replayer needs at least one event (typically a FullSnapshot, type 2)
-    // to construct. We wait for the snapshot to arrive, then bootstrap and flush
-    // everything else through addEvent.
+    // The agent goes through several intermediate pages before reaching the
+    // real target: about:blank → auth page → captcha → target. Each navigation
+    // produces a fresh FullSnapshot. If we bootstrap on the FIRST FullSnapshot,
+    // we render about:blank (visually empty) and the user sees a blank frame
+    // until the next FullSnapshot arrives.
+    //
+    // Strategy: defer bootstrap until we observe a FullSnapshot followed by at
+    // least one IncrementalSnapshot. That signals the page is alive (real DOM
+    // changing). Then bootstrap with the LATEST FullSnapshot + everything after,
+    // so we render the most recent page state, not stale intermediates.
     function maybeBootstrap(rrweb: typeof import('rrweb')) {
       if (cancelled || replayer) return;
-      const hasSnapshot = pending.some((e) => e.type === 2);
-      if (!hasSnapshot) return;
-      const r = new rrweb.Replayer(pending, {
+
+      // Find the index of the latest FullSnapshot (type 2) in pending.
+      let lastFullSnapshotIdx = -1;
+      for (let i = pending.length - 1; i >= 0; i--) {
+        const evt = pending[i];
+        if (evt && evt.type === 2) { lastFullSnapshotIdx = i; break; }
+      }
+      if (lastFullSnapshotIdx < 0) return;
+
+      // Need at least one IncrementalSnapshot AFTER the latest FullSnapshot.
+      // That proves the current page is alive (mutating), not a stale blank.
+      let hasIncrementalAfter = false;
+      for (let i = lastFullSnapshotIdx + 1; i < pending.length; i++) {
+        const evt = pending[i];
+        if (evt && evt.type === 3) { hasIncrementalAfter = true; break; }
+      }
+      if (!hasIncrementalAfter) return;
+
+      // Bootstrap with the latest FullSnapshot + everything after. Earlier
+      // snapshots (about:blank, captcha, etc.) get dropped — we only render
+      // the page the user actually cares about.
+      const bootEvents = pending.slice(lastFullSnapshotIdx);
+      const skipped = lastFullSnapshotIdx;
+      const r = new rrweb.Replayer(bootEvents, {
         root: hostEl,
         liveMode: true,
         showWarning: false,
@@ -76,11 +104,9 @@ export function RrwebFrame({
         // Skip nothing — agents have plenty of "thinking" pauses we still want to render.
         skipInactive: false,
       });
-      // startLive begins applying events as they arrive relative to wall-clock.
-      r.startLive(pending[0]?.timestamp);
-      // Bare Replayer doesn't render UI chrome; the replay iframe is now in `host`.
+      r.startLive(bootEvents[0]?.timestamp);
       replayer = r;
-      console.log(`[testbuds/rrweb-client] Replayer bootstrapped with ${pending.length} events`);
+      console.log(`[testbuds/rrweb-client] Replayer bootstrapped after ${Date.now() - sseOpenedAt}ms with ${bootEvents.length} events (dropped ${skipped} pre-content events)`);
       pending = [];
       if (bootstrapTimer) clearTimeout(bootstrapTimer);
       installFitToHost();
@@ -115,10 +141,12 @@ export function RrwebFrame({
       resizeObserver.observe(wrapper);
     }
 
+    let sseOpenedAt = 0;
     (async () => {
       // Dynamic import — see comment above.
       const rrweb = await import('rrweb');
       if (cancelled) return;
+      sseOpenedAt = Date.now();
       console.log('[testbuds/rrweb-client] opening SSE for run', runId);
       const source = new EventSource(`/api/runs/${runId}/events`);
       let receivedAny = false;
@@ -133,7 +161,7 @@ export function RrwebFrame({
       source.onmessage = (m) => {
         if (!receivedAny) {
           receivedAny = true;
-          console.log('[testbuds/rrweb-client] first SSE message arrived');
+          console.log(`[testbuds/rrweb-client] first SSE message arrived after ${Date.now() - sseOpenedAt}ms`);
         }
         let parsed: { kind: 'event'; event: eventWithTime } | { kind: 'end' };
         try {
@@ -241,7 +269,7 @@ export function RrwebFrame({
             Connecting the bud
           </span>
           <span style={{ fontSize: 12, color: 'var(--color-ink-4)' }}>
-            The agent is starting its browser session…
+            Loading the page (captchas, redirects, slow CDNs)…
           </span>
         </div>
       )}
