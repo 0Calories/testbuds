@@ -110,7 +110,7 @@ export function BrowserFrame({ url, recording = true, liveViewUrl, children }: B
           )}
         </div>
         <div style={{ flex: 1, position: 'relative', overflow: 'hidden', background: '#fff' }}>
-          {liveViewUrl ? (
+          {liveViewUrl && recording ? (
             <iframe
               src={liveViewUrl}
               style={{ width: '100%', height: '100%', border: 'none', display: 'block' }}
@@ -118,6 +118,26 @@ export function BrowserFrame({ url, recording = true, liveViewUrl, children }: B
               sandbox="allow-same-origin allow-scripts"
               allow="clipboard-read; clipboard-write"
             />
+          ) : !recording ? (
+            <div
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                height: '100%',
+                gap: 8,
+                color: 'var(--color-ink-3)',
+                fontSize: 14,
+                textAlign: 'center',
+                padding: 24,
+              }}
+            >
+              <div className="mono" style={{ fontSize: 11, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--color-ink-4)' }}>
+                Session ended
+              </div>
+              <div style={{ color: 'var(--color-ink-3)' }}>The bud has finished its run.</div>
+            </div>
           ) : (
             children ?? (
               <div

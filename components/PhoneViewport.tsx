@@ -172,7 +172,7 @@ export function PhoneViewport({
           </div>
           {/* viewport (iframe) */}
           <div style={{ position: 'absolute', top: 50, left: 0, right: 0, bottom: 0, overflow: 'hidden', background: '#fff' }}>
-            {liveViewUrl ? (
+            {liveViewUrl && recording ? (
               <iframe
                 src={liveViewUrl}
                 style={{ width: '100%', height: '100%', border: 'none', display: 'block' }}
@@ -180,6 +180,26 @@ export function PhoneViewport({
                 sandbox="allow-same-origin allow-scripts"
                 allow="clipboard-read; clipboard-write"
               />
+            ) : !recording ? (
+              <div
+                style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  height: '100%',
+                  gap: 8,
+                  color: 'var(--color-ink-3)',
+                  fontSize: 13,
+                  padding: 20,
+                  textAlign: 'center',
+                }}
+              >
+                <div className="mono" style={{ fontSize: 10, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--color-ink-4)' }}>
+                  Session ended
+                </div>
+                <div style={{ color: 'var(--color-ink-3)' }}>The bud has finished its run.</div>
+              </div>
             ) : (
               children ?? (
                 <div

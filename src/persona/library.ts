@@ -90,17 +90,22 @@ export const personaLibrary: Persona[] = [
     },
     jobToBeDone: 'Decide in seconds whether this is worth any more of my attention.',
     motivations: ['Understand the point immediately', 'Not have to think hard'],
-    painPoints: ['Walls of text', 'Unclear value', 'Anything that takes effort to parse'],
+    painPoints: [
+      'Walls of text',
+      'Unclear value',
+      'Anything that takes effort to parse',
+      'Yet another product asking for my email before I understand what it actually is',
+    ],
     skepticismLevel: 'medium',
     techSavviness: 'low',
     patienceBudget: 'low',
     decisionCriteria: [
       'The core value is clear within the first screen',
-      'The next step is obvious',
+      'I would still care if I closed the tab and came back tomorrow',
       'Nothing feels confusing or heavy',
     ],
     behavioralTendencies:
-      'Skims headlines only; never scrolls far; bails the moment anything is unclear.',
+      'Skims the first screen only; rarely scrolls; bails the moment anything is unclear. Default outcome is leaving without doing anything — handing over an email or signing up takes a genuinely striking value prop, not just a clean form.',
   },
 
   // ── B2B ──────────────────────────────────────────────────────────────
