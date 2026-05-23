@@ -16,6 +16,7 @@
   "dependencies": {
     "@anthropic-ai/sdk": "^0.98.0",
     "@browserbasehq/stagehand": "^3.4.0",
+    "ai": "^6.0.191",
     "commander": "^14.0.3",
     "dotenv": "^17.4.2",
     "zod": "^4.4.3"

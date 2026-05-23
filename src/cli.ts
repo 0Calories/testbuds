@@ -1,10 +1,28 @@
 import 'dotenv/config';
 import { Command } from 'commander';
 import Anthropic from '@anthropic-ai/sdk';
-import { StagehandBrowser } from './agent/browser';
+import { Stagehand } from '@browserbasehq/stagehand';
 import { getPersona, personaLibrary } from './persona/library';
 import { executeRun } from './run/runner';
 import type { Connection } from './connection/types';
+
+/** Build a fresh Stagehand session on Browserbase, in hybrid mode for richer page handling. */
+async function createStagehand(): Promise<Stagehand> {
+  const stagehand = new Stagehand({
+    env: 'BROWSERBASE',
+    apiKey: process.env.BROWSERBASE_API_KEY,
+    projectId: process.env.BROWSERBASE_PROJECT_ID,
+    // Required by Stagehand to enable agent custom tools + callbacks + abort signal.
+    experimental: true,
+    disableAPI: true,
+    model: {
+      modelName: 'anthropic/claude-sonnet-4-6',
+      apiKey: process.env.ANTHROPIC_API_KEY,
+    },
+  });
+  await stagehand.init();
+  return stagehand;
+}
 
 const program = new Command();
 
@@ -40,7 +58,12 @@ program
 
     const connection: Connection =
       opts.loginUrl && opts.username && opts.password
-        ? { mode: 'test-credential', loginUrl: opts.loginUrl, username: opts.username, password: opts.password }
+        ? {
+            mode: 'test-credential',
+            loginUrl: opts.loginUrl,
+            username: opts.username,
+            password: opts.password,
+          }
         : { mode: 'public' };
 
     const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
@@ -55,11 +78,14 @@ program
         goal: opts.goal,
         maxSteps: Number(opts.maxSteps),
         onStep: (step) => {
+          // Skip routine observation steps that produced no in-character narration —
+          // the persona only "speaks" when there is something to react to.
+          if (!step.narration) return;
           const emoji = step.actionResult === 'failed' ? '⚠️ ' : '';
           console.log(`  [${step.index}] ${emoji}${step.reaction.emotion}: ${step.narration}`);
         },
       },
-      { anthropic, createBrowser: () => StagehandBrowser.create() },
+      { anthropic, createStagehand },
     );
 
     console.log(`\n── VERDICT ──`);
