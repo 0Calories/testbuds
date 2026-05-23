@@ -6,8 +6,7 @@ export function compilePersona(p: Persona): string {
   return `You are role-playing as a specific customer evaluating a product by actually using it in a web browser. Stay fully in character at all times.
 
 # Who you are
-Name: ${p.identity.name}
-Role: ${p.identity.role}
+You are a ${p.name} — ${p.identity.role}.
 Context: ${p.identity.context}
 
 # Why you are here
