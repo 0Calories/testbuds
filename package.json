@@ -20,12 +20,14 @@
     "@anthropic-ai/sdk": "^0.98.0",
     "@browserbasehq/sdk": "^2.12.0",
     "@browserbasehq/stagehand": "^3.4.0",
+    "@rrweb/types": "2.0.0-alpha.20",
     "ai": "^6.0.191",
     "commander": "^14.0.3",
     "dotenv": "^17.4.2",
     "next": "^15.5.18",
     "react": "^19.2.6",
     "react-dom": "^19.2.6",
+    "rrweb": "2.0.0-alpha.4",
     "zod": "^4.4.3"
   },
   "devDependencies": {

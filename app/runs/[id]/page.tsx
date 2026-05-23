@@ -239,7 +239,7 @@ export default function RunViewPage({ params }: { params: Promise<{ id: string }
           totalSteps={25}
           trail={trail}
         />
-        <Viewport url={run.targetUrl} liveViewUrl={run.liveViewUrl} recording={running} />
+        <Viewport url={run.targetUrl} liveViewUrl={run.liveViewUrl} runId={run.id} recording={running} />
         {run.status === 'completed' && run.verdict ? (
           <VerdictPanel verdict={run.verdict} costume={run.persona.costume} />
         ) : run.status === 'failed' ? (

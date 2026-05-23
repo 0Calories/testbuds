@@ -1,9 +1,13 @@
-import type { ReactNode } from 'react';
+'use client';
+
+import { useState, type ReactNode } from 'react';
+import { ViewportBody } from './BrowserFrame';
 
 export interface PhoneViewportProps {
   url: string;
   recording?: boolean;
   liveViewUrl?: string;
+  runId?: string;
   children?: ReactNode;
   device?: string;
 }
@@ -17,9 +21,11 @@ export function PhoneViewport({
   url,
   recording = true,
   liveViewUrl,
+  runId,
   children,
   device = 'iPhone 14 Pro',
 }: PhoneViewportProps) {
+  const [stream, setStream] = useState<'rrweb' | 'raw'>(runId ? 'rrweb' : 'raw');
   return (
     <div
       style={{
@@ -170,54 +176,16 @@ export function PhoneViewport({
               </span>
             </div>
           </div>
-          {/* viewport (iframe) */}
+          {/* viewport (rrweb replay / live view iframe / placeholder) */}
           <div style={{ position: 'absolute', top: 50, left: 0, right: 0, bottom: 0, overflow: 'hidden', background: '#fff' }}>
-            {liveViewUrl && recording ? (
-              <iframe
-                src={liveViewUrl}
-                style={{ width: '100%', height: '100%', border: 'none', display: 'block' }}
-                title="Live agent browser (mobile)"
-                sandbox="allow-same-origin allow-scripts"
-                allow="clipboard-read; clipboard-write"
-              />
-            ) : !recording ? (
-              <div
-                style={{
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  height: '100%',
-                  gap: 8,
-                  color: 'var(--color-ink-3)',
-                  fontSize: 13,
-                  padding: 20,
-                  textAlign: 'center',
-                }}
-              >
-                <div className="mono" style={{ fontSize: 10, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--color-ink-4)' }}>
-                  Session ended
-                </div>
-                <div style={{ color: 'var(--color-ink-3)' }}>The bud has finished its run.</div>
-              </div>
-            ) : (
-              children ?? (
-                <div
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    height: '100%',
-                    color: 'var(--color-ink-4)',
-                    fontSize: 13,
-                    padding: 20,
-                    textAlign: 'center',
-                  }}
-                >
-                  Connecting the bud…
-                </div>
-              )
-            )}
+            <ViewportBody
+              recording={recording}
+              stream={stream}
+              runId={runId}
+              liveViewUrl={liveViewUrl}
+              onRrwebUnavailable={() => liveViewUrl && setStream('raw')}
+              fallback={children}
+            />
           </div>
         </div>
       </div>

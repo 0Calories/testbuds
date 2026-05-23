@@ -11,6 +11,7 @@ interface AgentStepLike {
   toolCalls: Array<{ toolName: string; input: unknown }>;
   toolResults: Array<{ output?: unknown }>;
 }
+import type { eventWithTime } from '@rrweb/types';
 import { compilePersona } from '../persona/compiler';
 import type { Step, Action } from '../agent/types';
 import {
@@ -23,6 +24,7 @@ import type { Connection } from '../connection/types';
 import { establishAuth, makeAuthDriver } from '../connection/auth';
 import { synthesizeVerdict } from '../verdict/synthesizer';
 import type { Verdict } from '../verdict/types';
+import { installRecorder } from './recorder';
 
 export interface ExecuteRunInput {
   persona: Persona;
@@ -35,6 +37,15 @@ export interface ExecuteRunInput {
   onStep?: (step: Step) => void;
   /** Fires once the Stagehand session exists, before auth/navigation. */
   onBrowserReady?: (info: { sessionId: string | undefined }) => void | Promise<void>;
+  /**
+   * Called for every rrweb event emitted by the agent's page (FullSnapshots and
+   * IncrementalSnapshots). The caller is responsible for buffering / fanning
+   * out to live viewers. Errors here MUST NOT throw — they would surface back
+   * into the recorded page via the binding bridge.
+   */
+  onRrwebEvent?: (event: eventWithTime) => void;
+  /** Called once when the agent's browser session ends, after `stagehand.close()`. */
+  onRrwebEnd?: () => void;
 }
 
 export interface ExecuteRunDeps {
@@ -78,6 +89,22 @@ export async function executeRun(
     await input.onBrowserReady?.({
       sessionId: (stagehand as unknown as { browserbaseSessionID?: string }).browserbaseSessionID,
     });
+
+    // Install the rrweb recorder BEFORE auth or navigation, so we capture the
+    // first FullSnapshot of the target page. If no onRrwebEvent callback is
+    // provided we skip the installation entirely.
+    if (input.onRrwebEvent) {
+      const safeEmit = input.onRrwebEvent;
+      try {
+        await installRecorder(stagehand, (event) => {
+          try { safeEmit(event); } catch (_) { /* never let caller bubble back into page */ }
+        });
+      } catch (err) {
+        // Recorder install failed — log and continue without it. The viewer can
+        // fall back to the Browserbase live view.
+        console.warn('[runner] rrweb recorder install failed:', err);
+      }
+    }
 
     // 1. Auth
     await establishAuth(makeAuthDriver(stagehand), input.connection);
@@ -149,6 +176,7 @@ export async function executeRun(
     };
   } finally {
     await stagehand.close();
+    input.onRrwebEnd?.();
   }
 }
 

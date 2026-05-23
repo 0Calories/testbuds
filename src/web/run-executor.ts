@@ -4,6 +4,7 @@ import type { Persona } from '../persona/types';
 import type { Connection } from '../connection/types';
 import { executeRun } from '../run/runner';
 import { getLiveViewUrl } from './live-view';
+import { pushEvent as pushRrwebEvent, markEnded as markRrwebEnded } from './rrweb-buffer';
 import {
   createRun,
   setLiveViewUrl,
@@ -66,6 +67,8 @@ export function startRun(input: StartRunInput): string {
         if (url) setLiveViewUrl(record.id, url);
       },
       onStep: (step) => appendStep(record.id, step),
+      onRrwebEvent: (event) => pushRrwebEvent(record.id, event),
+      onRrwebEnd: () => markRrwebEnded(record.id),
     },
     { anthropic, createStagehand },
   )

@@ -1,19 +1,32 @@
-import type { ReactNode } from 'react';
+'use client';
+
+import { useState, type ReactNode } from 'react';
+import { RrwebFrame } from './RrwebFrame';
 
 export interface BrowserFrameProps {
   url: string;
   recording?: boolean;
-  /** Optional live-view iframe URL. If absent, renders a placeholder. */
+  /** Optional live-view iframe URL (Browserbase CDP stream). */
   liveViewUrl?: string;
-  /** Optional content to render inside the frame instead of the iframe (for tests / fallback). */
+  /** When provided, the frame uses rrweb DOM replay by default with a fallback to liveViewUrl. */
+  runId?: string;
+  /** Optional content rendered when neither rrweb nor liveViewUrl is available (tests / placeholder). */
   children?: ReactNode;
 }
 
+type Stream = 'rrweb' | 'raw';
+
 /**
- * Desktop browser chrome that wraps a Browserbase Live View iframe.
- * Renders traffic-light dots + a fake address bar + an optional REC pill.
+ * Desktop browser chrome that wraps either an rrweb live replay (default when
+ * runId is set) or the Browserbase Live View iframe (fallback). A small text
+ * toggle in the URL bar lets the user flip between them; if rrweb's bootstrap
+ * stream errors out, we auto-flip to raw.
  */
-export function BrowserFrame({ url, recording = true, liveViewUrl, children }: BrowserFrameProps) {
+export function BrowserFrame({ url, recording = true, liveViewUrl, runId, children }: BrowserFrameProps) {
+  const [stream, setStream] = useState<Stream>(runId ? 'rrweb' : 'raw');
+  const canRrweb = !!runId;
+  const canRaw = !!liveViewUrl;
+
   return (
     <div
       style={{
@@ -82,6 +95,27 @@ export function BrowserFrame({ url, recording = true, liveViewUrl, children }: B
               {url}
             </span>
           </div>
+          {canRrweb && canRaw && recording && (
+            <button
+              type="button"
+              onClick={() => setStream(stream === 'rrweb' ? 'raw' : 'rrweb')}
+              title={stream === 'rrweb' ? 'Switch to raw browser stream' : 'Switch back to smooth replay'}
+              className="mono"
+              style={{
+                background: 'transparent',
+                border: '1px solid #E8E5DC',
+                borderRadius: 999,
+                padding: '3px 9px',
+                fontSize: 10.5,
+                color: 'var(--color-ink-3)',
+                letterSpacing: '0.06em',
+                textTransform: 'uppercase',
+                cursor: 'pointer',
+              }}
+            >
+              {stream === 'rrweb' ? '● smooth' : '● raw'}
+            </button>
+          )}
           {recording && (
             <div
               style={{
@@ -110,52 +144,92 @@ export function BrowserFrame({ url, recording = true, liveViewUrl, children }: B
           )}
         </div>
         <div style={{ flex: 1, position: 'relative', overflow: 'hidden', background: '#fff' }}>
-          {liveViewUrl && recording ? (
-            <iframe
-              src={liveViewUrl}
-              style={{ width: '100%', height: '100%', border: 'none', display: 'block' }}
-              title="Live agent browser"
-              sandbox="allow-same-origin allow-scripts"
-              allow="clipboard-read; clipboard-write"
-            />
-          ) : !recording ? (
-            <div
-              style={{
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                justifyContent: 'center',
-                height: '100%',
-                gap: 8,
-                color: 'var(--color-ink-3)',
-                fontSize: 14,
-                textAlign: 'center',
-                padding: 24,
-              }}
-            >
-              <div className="mono" style={{ fontSize: 11, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--color-ink-4)' }}>
-                Session ended
-              </div>
-              <div style={{ color: 'var(--color-ink-3)' }}>The bud has finished its run.</div>
-            </div>
-          ) : (
-            children ?? (
-              <div
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  height: '100%',
-                  color: 'var(--color-ink-4)',
-                  fontSize: 14,
-                }}
-              >
-                Connecting the bud…
-              </div>
-            )
-          )}
+          <ViewportBody
+            recording={recording}
+            stream={stream}
+            runId={runId}
+            liveViewUrl={liveViewUrl}
+            onRrwebUnavailable={() => canRaw && setStream('raw')}
+            fallback={children}
+          />
         </div>
       </div>
     </div>
+  );
+}
+
+/** Picks the right body for current stream + recording state. Same logic shared with PhoneViewport. */
+export function ViewportBody({
+  recording,
+  stream,
+  runId,
+  liveViewUrl,
+  onRrwebUnavailable,
+  fallback,
+}: {
+  recording: boolean;
+  stream: Stream;
+  runId?: string;
+  liveViewUrl?: string;
+  onRrwebUnavailable: () => void;
+  fallback?: ReactNode;
+}) {
+  if (!recording) {
+    return (
+      <div
+        style={{
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          height: '100%',
+          gap: 8,
+          color: 'var(--color-ink-3)',
+          fontSize: 14,
+          textAlign: 'center',
+          padding: 24,
+        }}
+      >
+        <div className="mono" style={{ fontSize: 11, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--color-ink-4)' }}>
+          Session ended
+        </div>
+        <div style={{ color: 'var(--color-ink-3)' }}>The bud has finished its run.</div>
+      </div>
+    );
+  }
+
+  if (stream === 'rrweb' && runId) {
+    return <RrwebFrame runId={runId} onUnavailable={onRrwebUnavailable} />;
+  }
+
+  if (liveViewUrl) {
+    return (
+      <iframe
+        src={liveViewUrl}
+        style={{ width: '100%', height: '100%', border: 'none', display: 'block' }}
+        title="Live agent browser"
+        sandbox="allow-same-origin allow-scripts"
+        allow="clipboard-read; clipboard-write"
+      />
+    );
+  }
+
+  return (
+    <>
+      {fallback ?? (
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            height: '100%',
+            color: 'var(--color-ink-4)',
+            fontSize: 14,
+          }}
+        >
+          Connecting the bud…
+        </div>
+      )}
+    </>
   );
 }
