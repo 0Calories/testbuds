@@ -26,7 +26,8 @@ export async function GET(
   const { id } = await params;
   const encoder = new TextEncoder();
   const openedAt = Date.now();
-  let writeCount = 0;
+  let bytesWritten = 0;
+  let eventsWritten = 0;
 
   const stream = new ReadableStream({
     start(controller) {
@@ -34,15 +35,18 @@ export async function GET(
       const write = (chunk: string) => {
         if (closed) return;
         try {
-          controller.enqueue(encoder.encode(chunk));
-          writeCount++;
+          const bytes = encoder.encode(chunk);
+          controller.enqueue(bytes);
+          bytesWritten += bytes.length;
         } catch { closed = true; }
       };
       const sendEvent = (event: eventWithTime) => {
-        const before = writeCount;
         write(`data: ${JSON.stringify({ kind: 'event', event })}\n\n`);
-        if (before === 0) {
-          log(`first event written to client for run=${id.slice(0, 8)} after ${Date.now() - openedAt}ms`);
+        eventsWritten++;
+        if (eventsWritten === 1) {
+          log(`first event written for run=${id.slice(0, 8)} after ${Date.now() - openedAt}ms (bytes=${bytesWritten})`);
+        } else if (eventsWritten === 10 || eventsWritten === 100 || eventsWritten % 500 === 0) {
+          log(`wrote event #${eventsWritten} at T+${Date.now() - openedAt}ms (total bytes=${bytesWritten})`);
         }
       };
       const sendEnd = () => {
@@ -51,7 +55,10 @@ export async function GET(
         closed = true;
       };
 
-      // Hint to proxies/Nginx that this is a stream, not a buffered response.
+      // 2KB padding comment FIRST — pushes past Node HTTP write coalescing and
+      // any intermediate proxy that holds back until a small-write threshold is
+      // crossed. Classic SSE flush-priming trick.
+      write(`: ${'.'.repeat(2048)}\n\n`);
       write(`retry: 2000\n\n`);
 
       const sub = subscribe(id, sendEvent, sendEnd);
@@ -60,13 +67,16 @@ export async function GET(
       for (const e of sub.backlog) sendEvent(e);
       if (sub.ended) sendEnd();
 
-      const keepalive = setInterval(() => write(`: keepalive\n\n`), 15_000);
+      // Aggressive keepalive while we're debugging buffering — every 2s instead
+      // of 15s. Keeps a steady stream of small writes flowing so we can spot
+      // any "messages stuck until next write" pattern in the wire.
+      const keepalive = setInterval(() => write(`: keepalive ${Date.now()}\n\n`), 2000);
 
       const cleanup = () => {
         clearInterval(keepalive);
         sub.unsubscribe();
         closed = true;
-        log(`closed run=${id.slice(0, 8)} total writes=${writeCount}`);
+        log(`closed run=${id.slice(0, 8)} events=${eventsWritten} bytes=${bytesWritten}`);
       };
 
       request.signal.addEventListener('abort', cleanup);
