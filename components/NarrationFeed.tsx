@@ -24,32 +24,33 @@ function FeedItem({ kind, expression, text }: FeedItemData) {
     <div
       style={{
         display: 'flex',
-        gap: 12,
-        padding: '12px 18px',
+        gap: 10,
+        padding: '8px 16px',
         borderBottom: '1px solid var(--color-line-soft)',
+        opacity: 0.92,
       }}
     >
       <div
         style={{
           flexShrink: 0,
-          width: 42,
-          height: 42,
+          width: 28,
+          height: 28,
           background: 'var(--color-paper-deep)',
-          borderRadius: 10,
+          borderRadius: 8,
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
           overflow: 'hidden',
         }}
       >
-        <Testbud expression={expression} size={48} style={{ transform: 'translateY(4px)' }} />
+        <Testbud expression={expression} size={32} style={{ transform: 'translateY(3px)' }} />
       </div>
       <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 2 }}>
           <span
             className="mono"
             style={{
-              fontSize: 10,
+              fontSize: 9.5,
               color: meta.color,
               fontWeight: 600,
               textTransform: 'uppercase',
@@ -59,7 +60,7 @@ function FeedItem({ kind, expression, text }: FeedItemData) {
             {meta.tag}
           </span>
         </div>
-        <div style={{ fontSize: 13.5, color: 'var(--color-ink-2)', lineHeight: 1.45 }}>{text}</div>
+        <div style={{ fontSize: 12.5, color: 'var(--color-ink-3)', lineHeight: 1.4 }}>{text}</div>
       </div>
     </div>
   );
@@ -103,109 +104,87 @@ interface CurrentBudProps {
   costume?: Costume;
   expression: Expression;
   thought?: string;
-  streaming: boolean;
 }
 
-function CurrentBud({ costume, expression, thought, streaming }: CurrentBudProps) {
+const BUD_SIZE = 168;
+const BUD_RIGHT_INSET = 22;
+// Bud-mascot SVG (viewBox 200×220) renders meet-fitted inside a square box, so
+// its body center sits BUD_SIZE/2 from each side. Sprout/head sits slightly
+// left of that center, which is where the tail dots should land.
+const BUD_HEAD_OFFSET_FROM_RIGHT = BUD_RIGHT_INSET + BUD_SIZE / 2 + 6;
+
+function CurrentBud({ costume, expression, thought }: CurrentBudProps) {
   const hasThought = thought && thought.length > 0;
   return (
     <div
       style={{
         position: 'relative',
         flexShrink: 0,
-        padding: '18px 18px 14px',
+        padding: `22px ${BUD_RIGHT_INSET}px 14px`,
         borderTop: '1px solid var(--color-line-soft)',
         background: 'var(--color-paper-deep)',
         display: 'flex',
-        alignItems: 'flex-end',
-        gap: 10,
-        minHeight: 156,
+        flexDirection: 'column',
       }}
     >
       <div
         style={{
-          flex: 1,
-          minWidth: 0,
+          background: 'var(--color-paper)',
+          border: '1.5px solid var(--color-line)',
+          borderRadius: 22,
+          padding: '16px 18px',
+          fontSize: 15,
+          lineHeight: 1.45,
+          color: hasThought ? 'var(--color-ink-2)' : 'var(--color-ink-3)',
+          fontStyle: hasThought ? 'normal' : 'italic',
+          boxShadow: '0 1px 0 rgba(0,0,0,0.04)',
+          minHeight: 56,
+          // Leave a wedge on the right so the tail can descend diagonally
+          // toward the bud's head without overlapping the bubble.
+          marginRight: 24,
           display: 'flex',
-          flexDirection: 'column',
-          justifyContent: 'flex-end',
-          paddingBottom: 18,
+          alignItems: 'center',
+          animation: 'bud-float 3.2s ease-in-out infinite',
         }}
       >
-        <div
-          style={{
-            position: 'relative',
-            background: 'var(--color-paper)',
-            border: '1.5px solid var(--color-line)',
-            borderRadius: 18,
-            padding: '12px 14px',
-            fontSize: 13.5,
-            lineHeight: 1.4,
-            color: hasThought ? 'var(--color-ink-2)' : 'var(--color-ink-3)',
-            fontStyle: hasThought ? 'normal' : 'italic',
-            boxShadow: '0 1px 0 rgba(0,0,0,0.02)',
-          }}
-        >
-          {hasThought ? (
-            thought
-          ) : streaming ? (
-            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
-              <ThinkingDots /> warming up…
-            </span>
-          ) : (
-            'Just arrived. Looking around…'
-          )}
-          <span
-            aria-hidden
-            style={{
-              position: 'absolute',
-              right: -7,
-              bottom: 14,
-              width: 10,
-              height: 10,
-              background: 'var(--color-paper)',
-              border: '1.5px solid var(--color-line)',
-              borderLeft: 'none',
-              borderTop: 'none',
-              borderRadius: '0 0 3px 0',
-              transform: 'rotate(-45deg)',
-            }}
-          />
-          <span
-            aria-hidden
-            style={{
-              position: 'absolute',
-              right: -14,
-              bottom: 4,
-              width: 6,
-              height: 6,
-              background: 'var(--color-paper)',
-              border: '1.5px solid var(--color-line)',
-              borderRadius: '50%',
-            }}
-          />
-          <span
-            aria-hidden
-            style={{
-              position: 'absolute',
-              right: -22,
-              bottom: -2,
-              width: 4,
-              height: 4,
-              background: 'var(--color-paper)',
-              border: '1.5px solid var(--color-line)',
-              borderRadius: '50%',
-            }}
-          />
-        </div>
-        {streaming && hasThought && (
-          <div style={{ marginTop: 8, paddingLeft: 4 }}>
-            <ThinkingDots />
-          </div>
+        {hasThought ? (
+          thought
+        ) : (
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 10 }}>
+            thinking <ThinkingDots />
+          </span>
         )}
       </div>
-      <div style={{ flexShrink: 0, alignSelf: 'flex-end' }}>
-        <Testbud expression={expression} costume={costume} size={120} animated />
+      <span
+        aria-hidden
+        style={{
+          position: 'absolute',
+          right: BUD_HEAD_OFFSET_FROM_RIGHT + 38,
+          bottom: BUD_SIZE - 6,
+          width: 13,
+          height: 13,
+          background: 'var(--color-paper)',
+          border: '1.5px solid var(--color-line)',
+          borderRadius: '50%',
+          animation: 'bud-float 3.2s ease-in-out infinite',
+        }}
+      />
+      <span
+        aria-hidden
+        style={{
+          position: 'absolute',
+          right: BUD_HEAD_OFFSET_FROM_RIGHT + 16,
+          bottom: BUD_SIZE - 24,
+          width: 8,
+          height: 8,
+          background: 'var(--color-paper)',
+          border: '1.5px solid var(--color-line)',
+          borderRadius: '50%',
+          animation: 'bud-float 3.2s ease-in-out infinite',
+        }}
+      />
+      <div style={{ alignSelf: 'flex-end', marginTop: 26 }}>
+        <Testbud expression={expression} costume={costume} size={BUD_SIZE} animated />
       </div>
     </div>
   );
@@ -239,7 +218,7 @@ export function NarrationFeed({
     >
       <div
         style={{
-          padding: '14px 18px',
+          padding: '12px 16px',
           borderBottom: '1px solid var(--color-line-soft)',
           display: 'flex',
           alignItems: 'center',
@@ -249,13 +228,13 @@ export function NarrationFeed({
         <div
           className="mono"
           style={{
-            fontSize: 11,
+            fontSize: 10,
             letterSpacing: '0.12em',
             textTransform: 'uppercase',
-            color: 'var(--color-ink-3)',
+            color: 'var(--color-ink-4)',
           }}
         >
-          Live narration
+          Transcript
         </div>
       </div>
       <div style={{ flex: 1, overflow: 'auto', display: 'flex', flexDirection: 'column' }}>
@@ -264,7 +243,7 @@ export function NarrationFeed({
             style={{
               padding: '24px 18px',
               color: 'var(--color-ink-4)',
-              fontSize: 13,
+              fontSize: 12.5,
               textAlign: 'center',
             }}
           >
@@ -276,12 +255,7 @@ export function NarrationFeed({
         ))}
       </div>
       {streaming && (
-        <CurrentBud
-          costume={costume}
-          expression={currentExpression}
-          thought={currentThought}
-          streaming={streaming}
-        />
+        <CurrentBud costume={costume} expression={currentExpression} thought={currentThought} />
       )}
     </div>
   );

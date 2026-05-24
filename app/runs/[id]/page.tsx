@@ -201,7 +201,16 @@ export default function RunViewPage({ params }: { params: Promise<{ id: string }
   const latestStep = run.steps.length > 0 ? run.steps[run.steps.length - 1]! : undefined;
   const latestExpression: Expression =
     (latestStep?.reaction.emotion as Expression | undefined) ?? 'neutral';
-  const currentThought = latestStep?.bubble;
+  // Carry over the most recent non-empty bubble so the thought persists across
+  // observation-only steps where the agent didn't call `react`.
+  let currentThought: string | undefined;
+  for (let i = run.steps.length - 1; i >= 0; i--) {
+    const b = run.steps[i]!.bubble;
+    if (b && b.length > 0) {
+      currentThought = b;
+      break;
+    }
+  }
 
   const feedItems: FeedItemData[] = run.steps
     .filter((s) => s.narration && s.narration.length > 0)
