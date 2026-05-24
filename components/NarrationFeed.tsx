@@ -145,7 +145,6 @@ function CurrentBud({ costume, expression, thought }: CurrentBudProps) {
           marginRight: 24,
           display: 'flex',
           alignItems: 'center',
-          animation: 'bud-float 3.2s ease-in-out infinite',
         }}
       >
         {hasThought ? (
@@ -167,7 +166,6 @@ function CurrentBud({ costume, expression, thought }: CurrentBudProps) {
           background: 'var(--color-paper)',
           border: '1.5px solid var(--color-line)',
           borderRadius: '50%',
-          animation: 'bud-float 3.2s ease-in-out infinite',
         }}
       />
       <span
@@ -181,7 +179,6 @@ function CurrentBud({ costume, expression, thought }: CurrentBudProps) {
           background: 'var(--color-paper)',
           border: '1.5px solid var(--color-line)',
           borderRadius: '50%',
-          animation: 'bud-float 3.2s ease-in-out infinite',
         }}
       />
       <div style={{ alignSelf: 'flex-end', marginTop: 26 }}>
