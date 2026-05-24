@@ -1,52 +1,51 @@
 import { NextResponse } from 'next/server';
 import { getPersona } from '@/src/persona/library';
-import type { Connection } from '@/src/connection/types';
-import { startRun } from '@/src/web/run-executor';
-import { listRuns } from '@/src/web/run-store';
+
+const WORKER = process.env.WORKER_HTTP_URL ?? 'http://localhost:5174';
 
 export async function POST(request: Request) {
   const body = await request.json();
 
   const persona = getPersona(body.personaSlug);
   if (!persona) {
-    return NextResponse.json(
-      { error: `Unknown persona: ${body.personaSlug}` },
-      { status: 400 },
-    );
+    return NextResponse.json({ error: `Unknown persona: ${body.personaSlug}` }, { status: 400 });
   }
   if (!body.targetUrl || !body.goal) {
     return NextResponse.json({ error: 'targetUrl and goal are required' }, { status: 400 });
   }
 
-  const connection: Connection =
-    body.loginUrl && body.username && body.password
-      ? {
-          mode: 'test-credential',
-          loginUrl: body.loginUrl,
-          username: body.username,
-          password: body.password,
-        }
-      : { mode: 'public' };
+  const res = await fetch(`${WORKER}/runs`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({
+      personaSlug: body.personaSlug,
+      targetUrl: body.targetUrl,
+      goal: body.goal,
+      viewport: body.viewport === 'mobile' ? 'mobile' : 'desktop',
+    }),
+  }).catch(() => null);
 
-  const viewport = body.viewport === 'mobile' ? 'mobile' : 'desktop';
+  if (!res || !res.ok) {
+    return NextResponse.json(
+      { error: 'Worker offline. Start it with `pnpm worker`.' },
+      { status: 502 },
+    );
+  }
 
-  const runId = startRun({
-    persona,
-    connection,
-    targetUrl: body.targetUrl,
-    goal: body.goal,
-    viewport,
-  });
-
-  return NextResponse.json({ runId });
+  const json = (await res.json()) as { run: { id: string } };
+  return NextResponse.json({ runId: json.run.id });
 }
 
 export async function GET() {
-  const runs = listRuns().map((r) => ({
+  const res = await fetch(`${WORKER}/runs`).catch(() => null);
+  if (!res || !res.ok) return NextResponse.json({ runs: [] });
+  const json = (await res.json()) as { runs: Array<{ id: string; personaSlug: string; targetUrl: string; viewport: string; startedAt: number; status: string }> };
+  // Match the previous shape — the page-list UI consumes `personaName`.
+  const runs = json.runs.map((r) => ({
     id: r.id,
     status: r.status,
-    personaSlug: r.persona.slug,
-    personaName: r.persona.name,
+    personaSlug: r.personaSlug,
+    personaName: getPersona(r.personaSlug)?.name ?? r.personaSlug,
     targetUrl: r.targetUrl,
     viewport: r.viewport,
     startedAt: r.startedAt,
