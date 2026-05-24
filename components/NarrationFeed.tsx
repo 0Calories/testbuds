@@ -108,11 +108,11 @@ interface CurrentBudProps {
 }
 
 const BUD_SIZE = 168;
-const BUD_RIGHT_INSET = 22;
+const BUD_HORIZONTAL_INSET = 22;
 // Bud-mascot SVG (viewBox 200×220) renders meet-fitted inside a square box, so
-// its body center sits BUD_SIZE/2 from each side. Sprout/head sits slightly
-// left of that center, which is where the tail dots should land.
-const BUD_HEAD_OFFSET_FROM_RIGHT = BUD_RIGHT_INSET + BUD_SIZE / 2 + 6;
+// its body center sits BUD_SIZE/2 from each side. The sprout/head sits ~6px
+// left of that geometric center — that's where the tail dots should land.
+const BUD_HEAD_CENTER_OFFSET = 6;
 
 function CurrentBud({ costume, expression, thought }: CurrentBudProps) {
   const hasThought = thought && thought.length > 0;
@@ -121,15 +121,17 @@ function CurrentBud({ costume, expression, thought }: CurrentBudProps) {
       style={{
         position: 'relative',
         flexShrink: 0,
-        padding: `22px ${BUD_RIGHT_INSET}px 14px`,
+        padding: `22px ${BUD_HORIZONTAL_INSET}px 14px`,
         borderTop: '1px solid var(--color-line-soft)',
         background: 'var(--color-paper-deep)',
         display: 'flex',
         flexDirection: 'column',
+        alignItems: 'center',
       }}
     >
       <div
         style={{
+          alignSelf: 'stretch',
           background: 'var(--color-paper)',
           border: '1.5px solid var(--color-line)',
           borderRadius: 22,
@@ -140,11 +142,10 @@ function CurrentBud({ costume, expression, thought }: CurrentBudProps) {
           fontStyle: hasThought ? 'normal' : 'italic',
           boxShadow: '0 1px 0 rgba(0,0,0,0.04)',
           minHeight: 56,
-          // Leave a wedge on the right so the tail can descend diagonally
-          // toward the bud's head without overlapping the bubble.
-          marginRight: 24,
           display: 'flex',
           alignItems: 'center',
+          justifyContent: 'center',
+          textAlign: 'center',
         }}
       >
         {hasThought ? (
@@ -159,7 +160,7 @@ function CurrentBud({ costume, expression, thought }: CurrentBudProps) {
         aria-hidden
         style={{
           position: 'absolute',
-          right: BUD_HEAD_OFFSET_FROM_RIGHT + 38,
+          left: `calc(50% - ${BUD_HEAD_CENTER_OFFSET + 38 + 13 / 2}px)`,
           bottom: BUD_SIZE - 6,
           width: 13,
           height: 13,
@@ -172,7 +173,7 @@ function CurrentBud({ costume, expression, thought }: CurrentBudProps) {
         aria-hidden
         style={{
           position: 'absolute',
-          right: BUD_HEAD_OFFSET_FROM_RIGHT + 16,
+          left: `calc(50% - ${BUD_HEAD_CENTER_OFFSET + 16 + 8 / 2}px)`,
           bottom: BUD_SIZE - 24,
           width: 8,
           height: 8,
@@ -181,7 +182,7 @@ function CurrentBud({ costume, expression, thought }: CurrentBudProps) {
           borderRadius: '50%',
         }}
       />
-      <div style={{ alignSelf: 'flex-end', marginTop: 26 }}>
+      <div style={{ marginTop: 26 }}>
         <Testbud expression={expression} costume={costume} size={BUD_SIZE} animated />
       </div>
     </div>
