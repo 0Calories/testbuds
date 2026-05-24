@@ -1,18 +1,23 @@
-import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
+import { createServer, type Server } from 'node:http';
+import type { Store } from './store';
+import type { Orchestrator } from './orchestrator';
 
 export interface HttpDeps {
   port: number;
+  store: Store;
+  orchestrator: Orchestrator;
 }
 
-export function startHttpServer(deps: HttpDeps): ReturnType<typeof createServer> {
-  const server = createServer((req, res) => {
-    if (req.method === 'GET' && req.url === '/health') {
-      res.writeHead(200, { 'content-type': 'application/json' });
-      res.end(JSON.stringify({ ok: true }));
-      return;
+export function buildHttpServer(deps: HttpDeps): Server {
+  const server = createServer(async (req, res) => {
+    const url = req.url ?? '';
+
+    if (req.method === 'GET' && url === '/health') {
+      return json(res, 200, { ok: true });
     }
-    res.writeHead(404, { 'content-type': 'application/json' });
-    res.end(JSON.stringify({ error: 'Not found' }));
+
+    // Routes implemented in Task 9. For now, only /health.
+    json(res, 404, { error: 'Not found' });
   });
 
   server.listen(deps.port, () => {
@@ -20,4 +25,9 @@ export function startHttpServer(deps: HttpDeps): ReturnType<typeof createServer>
   });
 
   return server;
+}
+
+function json(res: import('node:http').ServerResponse, status: number, body: unknown): void {
+  res.writeHead(status, { 'content-type': 'application/json' });
+  res.end(JSON.stringify(body));
 }
