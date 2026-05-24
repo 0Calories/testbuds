@@ -15,11 +15,23 @@ Six archetypes seeded in `src/persona/library.ts`:
 
 ## Run it
 
+Testbuds is a two-process app: a Next.js UI (port 3000) and a worker (port 5174) that owns Chromium + the Stagehand agent.
+
 ```bash
 pnpm install
-# .env: ANTHROPIC_API_KEY, BROWSERBASE_API_KEY, BROWSERBASE_PROJECT_ID
+# .env: ANTHROPIC_API_KEY (Browserbase keys no longer needed)
 
-pnpm run testbuds personas
+pnpm exec playwright install chromium   # first time only
+
+pnpm run testbuds personas              # list personas
+
+# Start both processes:
+pnpm dev:all
+# ...or two terminals:
+#   pnpm worker
+#   pnpm dev
+
+# Start a run from the CLI (browser still needed to watch the live view):
 pnpm run testbuds run --persona skeptical-bargain-hunter \
                       --url https://example.com \
                       --goal "Decide whether to sign up."

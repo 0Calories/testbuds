@@ -1,28 +1,6 @@
 import 'dotenv/config';
 import { Command } from 'commander';
-import Anthropic from '@anthropic-ai/sdk';
-import { Stagehand } from '@browserbasehq/stagehand';
 import { getPersona, personaLibrary } from './persona/library';
-import { executeRun } from './run/runner';
-import type { Connection } from './connection/types';
-
-/** Build a fresh Stagehand session on Browserbase, in hybrid mode for richer page handling. */
-async function createStagehand(): Promise<Stagehand> {
-  const stagehand = new Stagehand({
-    env: 'BROWSERBASE',
-    apiKey: process.env.BROWSERBASE_API_KEY,
-    projectId: process.env.BROWSERBASE_PROJECT_ID,
-    // Required by Stagehand to enable agent custom tools + callbacks + abort signal.
-    experimental: true,
-    disableAPI: true,
-    model: {
-      modelName: 'anthropic/claude-sonnet-4-6',
-      apiKey: process.env.ANTHROPIC_API_KEY,
-    },
-  });
-  await stagehand.init();
-  return stagehand;
-}
 
 const program = new Command();
 
@@ -41,14 +19,11 @@ program
 
 program
   .command('run')
-  .description('Run a persona against a target URL.')
+  .description('Start a persona run via the worker. Watch the run live at http://localhost:3000/runs/<id>.')
   .requiredOption('--persona <slug>', 'persona slug (see `testbuds personas`)')
   .requiredOption('--url <url>', 'target URL to test')
   .requiredOption('--goal <goal>', 'plain-language goal for the persona')
-  .option('--max-steps <n>', 'maximum loop steps', '25')
-  .option('--login-url <url>', 'login page URL (enables test-credential mode)')
-  .option('--username <username>', 'test account username')
-  .option('--password <password>', 'test account password')
+  .option('--viewport <mode>', 'desktop or mobile', 'desktop')
   .action(async (opts) => {
     const persona = getPersona(opts.persona);
     if (!persona) {
@@ -56,47 +31,25 @@ program
       process.exit(1);
     }
 
-    const connection: Connection =
-      opts.loginUrl && opts.username && opts.password
-        ? {
-            mode: 'test-credential',
-            loginUrl: opts.loginUrl,
-            username: opts.username,
-            password: opts.password,
-          }
-        : { mode: 'public' };
-
-    const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
-
-    console.log(`\n▶ ${persona.name} is visiting ${opts.url}\n`);
-
-    const result = await executeRun(
-      {
-        persona,
-        connection,
+    const workerUrl = process.env.WORKER_HTTP_URL ?? 'http://localhost:5174';
+    const res = await fetch(`${workerUrl}/runs`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        personaSlug: opts.persona,
         targetUrl: opts.url,
         goal: opts.goal,
-        maxSteps: Number(opts.maxSteps),
-        onStep: (step) => {
-          // Skip routine observation steps that produced no in-character narration —
-          // the persona only "speaks" when there is something to react to.
-          if (!step.narration) return;
-          const emoji = step.actionResult === 'failed' ? '⚠️ ' : '';
-          console.log(`  [${step.index}] ${emoji}${step.reaction.emotion}: ${step.narration}`);
-        },
-      },
-      { anthropic, createStagehand },
-    );
+        viewport: opts.viewport === 'mobile' ? 'mobile' : 'desktop',
+      }),
+    }).catch(() => null);
 
-    console.log(`\n── VERDICT ──`);
-    console.log(`Decision:   ${result.verdict.decision} (confidence ${result.verdict.confidence})`);
-    console.log(`Highlight:  ${result.verdict.highlight}`);
-    console.log(`Summary:    ${result.verdict.summary}`);
-    console.log(`\nFriction (${result.verdict.frictionList.length}):`);
-    for (const f of result.verdict.frictionList) {
-      console.log(`  [${f.severity}] ${f.title} — "${f.evidenceQuote}" (step ${f.stepIndex})`);
+    if (!res || !res.ok) {
+      console.error('Worker offline. Start it with `pnpm worker`.');
+      process.exit(1);
     }
-    console.log(`\n${result.metadata.stepCount} steps in ${(result.metadata.durationMs / 1000).toFixed(1)}s`);
+
+    const { run } = (await res.json()) as { run: { id: string } };
+    console.log(`Run started: http://localhost:3000/runs/${run.id}`);
   });
 
 program.parseAsync().catch((err) => {
