@@ -51,7 +51,7 @@ function classifyKind(step: Step): FeedKind {
 function buildTrailItems(steps: Step[], running: boolean): TrailItem[] {
   const items: TrailItem[] = steps.map((s) => ({
     state: 'done' as const,
-    label: s.bubble || shortLabelFor(s),
+    label: trailLabelFor(s),
   }));
   if (running) {
     items.push({ state: 'active', label: 'Thinking…' });
@@ -59,11 +59,23 @@ function buildTrailItems(steps: Step[], running: boolean): TrailItem[] {
   return items;
 }
 
-function shortLabelFor(step: Step): string {
-  if (step.action.kind === 'finish') return `Decided — ${step.action.outcome}`;
-  if (step.action.kind === 'navigate' && step.action.url) return `Went to ${truncateUrl(step.action.url)}`;
-  if (step.narration) return step.narration.slice(0, 60) + (step.narration.length > 60 ? '…' : '');
-  return `Step ${step.index}`;
+/**
+ * Third-person description of what the bud did this step, for the trail.
+ * The right-pane narration feed surfaces the in-character thoughts; the trail
+ * is the observable action timeline.
+ */
+function trailLabelFor(step: Step): string {
+  const a = step.action;
+  if (a.kind === 'navigate' && a.url) return `Going to ${truncateUrl(a.url)}`;
+  if (a.kind === 'finish') {
+    if (a.outcome === 'gave_up') return 'Giving up';
+    if (a.outcome === 'completed') return 'Wrapping up';
+    return 'Finishing';
+  }
+  if (a.instruction && a.instruction.length > 0) {
+    return a.instruction.length > 70 ? a.instruction.slice(0, 69) + '…' : a.instruction;
+  }
+  return 'Working';
 }
 
 function truncateUrl(url: string): string {
