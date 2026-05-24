@@ -90,24 +90,48 @@ export function LiveReplayer({ runId, wsBase }: LiveReplayerProps) {
       });
     };
 
-    const resizer = new ResizeObserver(() => {
+    // Apply scaling so the recorded viewport fits the host container.
+    // Called from three sources: ResizeObserver (window/host resize), MutationObserver
+    // (rrweb appends/replaces its iframe), and an iframe-level ResizeObserver once
+    // the iframe exists (the iframe grows as the snapshot is hydrated).
+    let scaledIframe: HTMLIFrameElement | null = null;
+    const iframeResizer = new ResizeObserver(() => applyScale());
+
+    const applyScale = () => {
       const iframe = host.querySelector('iframe');
       if (!iframe) return;
-      const recordedWidth = iframe.offsetWidth || 1280;
+      if (iframe !== scaledIframe) {
+        if (scaledIframe) iframeResizer.unobserve(scaledIframe);
+        iframeResizer.observe(iframe);
+        scaledIframe = iframe;
+      }
+      const recordedWidth = iframe.offsetWidth;
+      if (recordedWidth <= 0) return; // iframe not yet hydrated; skip until it has size
       const scale = host.clientWidth / recordedWidth;
       iframe.style.transform = `scale(${scale})`;
       iframe.style.transformOrigin = 'top left';
-      host.style.height = `${iframe.offsetHeight * scale}px`;
+      // Only set host height when the iframe has content — otherwise we collapse to 0.
+      if (iframe.offsetHeight > 0) {
+        host.style.height = `${iframe.offsetHeight * scale}px`;
+      }
       decorateForeignFrames();
-    });
-    resizer.observe(host);
+    };
+
+    const hostResizer = new ResizeObserver(() => applyScale());
+    hostResizer.observe(host);
+
+    // rrweb appends its iframe lazily (after the first event arrives) — watch for it.
+    const mutationObserver = new MutationObserver(() => applyScale());
+    mutationObserver.observe(host, { childList: true, subtree: false });
 
     const decorator = setInterval(decorateForeignFrames, 1500);
 
     return () => {
       signal.aborted = true;
       conn.close();
-      resizer.disconnect();
+      hostResizer.disconnect();
+      iframeResizer.disconnect();
+      mutationObserver.disconnect();
       clearInterval(decorator);
       replayer.destroy();
     };
