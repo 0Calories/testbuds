@@ -66,11 +66,27 @@ describe('run-store', () => {
     expect(getRun(run.id)?.verdict?.decision).toBe('would_investigate');
   });
 
+  it('completeRun captures completedAt so elapsed time can be frozen', () => {
+    const run = newRun();
+    completeRun(run.id, verdict);
+    const completedAt = getRun(run.id)?.completedAt;
+    expect(completedAt).toBeTypeOf('number');
+    expect(completedAt!).toBeGreaterThanOrEqual(run.startedAt);
+  });
+
   it('failRun stores the error and failed status', () => {
     const run = newRun();
     failRun(run.id, 'browser crashed');
     expect(getRun(run.id)?.status).toBe('failed');
     expect(getRun(run.id)?.error).toBe('browser crashed');
+  });
+
+  it('failRun captures completedAt so elapsed time can be frozen', () => {
+    const run = newRun();
+    failRun(run.id, 'browser crashed');
+    const completedAt = getRun(run.id)?.completedAt;
+    expect(completedAt).toBeTypeOf('number');
+    expect(completedAt!).toBeGreaterThanOrEqual(run.startedAt);
   });
 
   it('listRuns returns the newest run first', async () => {
