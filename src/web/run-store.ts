@@ -18,6 +18,7 @@ export interface RunRecord {
   verdict?: Verdict;
   error?: string;
   startedAt: number;
+  completedAt?: number;
 }
 
 export interface CreateRunInput {
@@ -74,9 +75,9 @@ export function appendStep(id: string, step: Step): void {
 }
 
 export function completeRun(id: string, verdict: Verdict): void {
-  patch(id, { status: 'completed', verdict });
+  patch(id, { status: 'completed', verdict, completedAt: Date.now() });
 }
 
 export function failRun(id: string, error: string): void {
-  patch(id, { status: 'failed', error });
+  patch(id, { status: 'failed', error, completedAt: Date.now() });
 }

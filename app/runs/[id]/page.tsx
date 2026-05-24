@@ -30,6 +30,7 @@ interface RunRecord {
   verdict?: Verdict;
   error?: string;
   startedAt: number;
+  completedAt?: number;
 }
 
 function formatElapsed(ms: number): string {
@@ -116,11 +117,15 @@ export default function RunViewPage({ params }: { params: Promise<{ id: string }
     };
   }, [id]);
 
-  // Tick once a second so elapsed time refreshes between polls.
+  // Tick once a second so elapsed time refreshes between polls. Stop ticking
+  // once the run reaches a terminal state — elapsed is then locked to
+  // completedAt - startedAt and doesn't need refreshing.
+  const terminal = run?.status === 'completed' || run?.status === 'failed';
   useEffect(() => {
+    if (terminal) return;
     const i = setInterval(() => setTick((n) => n + 1), 1000);
     return () => clearInterval(i);
-  }, []);
+  }, [terminal]);
 
   if (notFound) {
     return (
@@ -181,7 +186,7 @@ export default function RunViewPage({ params }: { params: Promise<{ id: string }
   }
 
   const running = run.status === 'starting' || run.status === 'running';
-  const elapsed = formatElapsed(Date.now() - run.startedAt);
+  const elapsed = formatElapsed((run.completedAt ?? Date.now()) - run.startedAt);
   const status = statusLabel(run, elapsed);
   const latestExpression: Expression =
     run.steps.length > 0
