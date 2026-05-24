@@ -475,7 +475,7 @@ export default function NewRunPage() {
               alignItems: 'center',
             }}
           >
-            <Testbud expression="pleased" costume={persona.costume} size={200} />
+            <Testbud expression="pleased" costume={persona.costume} size={200} animated />
             <div className="display" style={{ fontSize: 22, fontWeight: 600, marginTop: 14, textAlign: 'center' }}>
               {persona.name}
             </div>

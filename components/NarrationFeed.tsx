@@ -41,7 +41,7 @@ function FeedItem({ kind, expression, text }: FeedItemData) {
           overflow: 'hidden',
         }}
       >
-        <Testbud expression={expression} size={48} style={{ transform: 'translateY(4px)' }} />
+        <Testbud expression={expression} size={48} style={{ transform: 'translateY(4px)' }} animated />
       </div>
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>

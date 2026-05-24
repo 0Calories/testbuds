@@ -68,7 +68,12 @@ export function PersonaPickCard({ persona, selected, onSelect }: PersonaPickCard
         </div>
       )}
       <div style={{ height: 118, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <Testbud expression={selected ? 'delighted' : 'neutral'} costume={persona.costume} size={130} />
+        <Testbud
+          expression={selected ? 'pleased' : 'neutral'}
+          costume={persona.costume}
+          size={130}
+          animated={selected}
+        />
       </div>
       <div className="display" style={{ fontSize: 15, fontWeight: 600, textAlign: 'center', lineHeight: 1.15 }}>
         {persona.name}

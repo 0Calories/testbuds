@@ -125,7 +125,7 @@ export function RunSidebar({
         }}
       >
         <div style={{ position: 'relative', display: 'inline-block' }}>
-          <Testbud expression={expression} costume={costume} size={140} />
+          <Testbud expression={expression} costume={costume} size={140} animated />
           <div
             className="mono"
             style={{
