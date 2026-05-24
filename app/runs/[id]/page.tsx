@@ -49,27 +49,17 @@ function classifyKind(step: Step): FeedKind {
 }
 
 function buildTrailItems(steps: Step[], running: boolean): TrailItem[] {
-  const items: TrailItem[] = steps.map((s) => {
-    const action = trailActionFor(s);
-    const narration = s.narration && s.narration.length > 0 ? s.narration : undefined;
-    // Headline = the persona's narration. Subtitle = the third-person action.
-    // If there's no narration to lead with, fall back to the action as the headline.
-    return {
-      state: 'done' as const,
-      label: narration ?? action ?? 'Thinking',
-      action: narration ? action : undefined,
-    };
-  });
+  const items: TrailItem[] = steps.map((s) => ({
+    state: 'done' as const,
+    label: trailActionFor(s) ?? 'Thinking',
+  }));
   if (running) {
     items.push({ state: 'active', label: 'Thinking…' });
   }
   return items;
 }
 
-/**
- * Third-person description of what the bud did this step. Rendered as the
- * trail subtitle under the persona's narration.
- */
+/** Third-person description of what the bud did this step, for the trail. */
 function trailActionFor(step: Step): string | undefined {
   const a = step.action;
   if (a.kind === 'navigate' && a.url) return `Going to ${truncateUrl(a.url)}`;

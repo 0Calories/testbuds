@@ -15,10 +15,8 @@ const PERSONA_TAG: Record<string, string> = {
 export type TrailState = 'done' | 'active' | 'idle';
 export interface TrailItem {
   state: TrailState;
-  /** Headline: the persona's in-character narration. */
+  /** Third-person description of what the bud is doing this step. */
   label: string;
-  /** Optional third-person action label, rendered as a muted subtitle. */
-  action?: string;
 }
 
 export interface RunSidebarProps {
@@ -80,7 +78,7 @@ function DotIdle() {
   );
 }
 
-function TrailStep({ state, label, action }: TrailItem) {
+function TrailStep({ state, label }: TrailItem) {
   const labelColor =
     state === 'done' ? 'var(--color-ink)' : state === 'active' ? 'var(--color-ink)' : 'var(--color-ink-4)';
   const dot = state === 'done' ? <DotCheck /> : state === 'active' ? <DotActive /> : <DotIdle />;
@@ -91,19 +89,6 @@ function TrailStep({ state, label, action }: TrailItem) {
         <div style={{ fontSize: 13, color: labelColor, fontWeight: state === 'active' ? 500 : 400, lineHeight: 1.4 }}>
           {label}
         </div>
-        {action ? (
-          <div
-            className="mono"
-            style={{
-              fontSize: 10,
-              color: 'var(--color-ink-3)',
-              letterSpacing: '0.04em',
-              marginTop: 3,
-            }}
-          >
-            {action}
-          </div>
-        ) : null}
       </div>
     </div>
   );
