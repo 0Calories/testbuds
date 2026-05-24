@@ -36,27 +36,31 @@ const FLOAT_DUR = '3.2s';
 const FLOAT_KEYTIMES = '0;0.5;1';
 const FLOAT_KEYSPLINES = '0.42 0 0.58 1;0.42 0 0.58 1';
 
-function TBShadow() {
+function TBShadow({ animated }: { animated: boolean }) {
   return (
     <ellipse cx="100" cy="210" rx="56" ry="5" fill="rgba(0,0,0,0.10)">
-      <animate
-        attributeName="rx"
-        values="56;48;56"
-        keyTimes={FLOAT_KEYTIMES}
-        dur={FLOAT_DUR}
-        repeatCount="indefinite"
-        calcMode="spline"
-        keySplines={FLOAT_KEYSPLINES}
-      />
-      <animate
-        attributeName="opacity"
-        values="1;0.55;1"
-        keyTimes={FLOAT_KEYTIMES}
-        dur={FLOAT_DUR}
-        repeatCount="indefinite"
-        calcMode="spline"
-        keySplines={FLOAT_KEYSPLINES}
-      />
+      {animated && (
+        <>
+          <animate
+            attributeName="rx"
+            values="56;48;56"
+            keyTimes={FLOAT_KEYTIMES}
+            dur={FLOAT_DUR}
+            repeatCount="indefinite"
+            calcMode="spline"
+            keySplines={FLOAT_KEYSPLINES}
+          />
+          <animate
+            attributeName="opacity"
+            values="1;0.55;1"
+            keyTimes={FLOAT_KEYTIMES}
+            dur={FLOAT_DUR}
+            repeatCount="indefinite"
+            calcMode="spline"
+            keySplines={FLOAT_KEYSPLINES}
+          />
+        </>
+      )}
     </ellipse>
   );
 }
@@ -604,6 +608,8 @@ export interface TestbudProps {
   size?: number;
   style?: CSSProperties;
   title?: string;
+  /** When false, the bud holds still. Used for grids of unselected options. Default: true. */
+  animated?: boolean;
 }
 
 /**
@@ -614,7 +620,8 @@ export interface TestbudProps {
  *
  * The bud has no feet: it levitates with a continuous idle bob, and the
  * ground shadow shrinks/lightens in counterphase. The animation is purely
- * SVG-relative so it stays seamless at every render size.
+ * SVG-relative so it stays seamless at every render size. Pass
+ * `animated={false}` to render a still bud (e.g. unselected pick-cards).
  */
 export function Testbud({
   expression = 'neutral',
@@ -622,6 +629,7 @@ export function Testbud({
   size = 180,
   style,
   title,
+  animated = true,
 }: TestbudProps) {
   const c = costume ? COSTUMES[costume] : null;
   return (
@@ -634,18 +642,20 @@ export function Testbud({
       aria-label={title ?? `Testbud, ${expression}${costume ? `, ${costume}` : ''}`}
     >
       {title && <title>{title}</title>}
-      <TBShadow />
+      <TBShadow animated={animated} />
       <g>
-        <animateTransform
-          attributeName="transform"
-          type="translate"
-          values="0 0;0 -6;0 0"
-          keyTimes={FLOAT_KEYTIMES}
-          dur={FLOAT_DUR}
-          repeatCount="indefinite"
-          calcMode="spline"
-          keySplines={FLOAT_KEYSPLINES}
-        />
+        {animated && (
+          <animateTransform
+            attributeName="transform"
+            type="translate"
+            values="0 0;0 -6;0 0"
+            keyTimes={FLOAT_KEYTIMES}
+            dur={FLOAT_DUR}
+            repeatCount="indefinite"
+            calcMode="spline"
+            keySplines={FLOAT_KEYSPLINES}
+          />
+        )}
         <TBArms pose={c ? c.arms : 'rest'} />
         <TBBody />
         {!(c && c.hidesSprout) && <TBSprout />}
