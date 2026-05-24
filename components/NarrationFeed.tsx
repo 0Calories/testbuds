@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react';
 import { Testbud, type Expression } from './Testbud';
 import type { Costume } from '@/src/persona/types';
 
@@ -198,6 +199,11 @@ export interface NarrationFeedProps {
   currentThought?: string;
 }
 
+// Treat the user as "stuck to the bottom" while within this many pixels of it.
+// Wide enough to forgive the few-pixel jitter that browsers introduce when the
+// container resizes between polls.
+const STICK_THRESHOLD = 48;
+
 export function NarrationFeed({
   items,
   streaming = false,
@@ -205,6 +211,30 @@ export function NarrationFeed({
   currentExpression = 'neutral',
   currentThought,
 }: NarrationFeedProps) {
+  const scrollRef = useRef<HTMLDivElement>(null);
+  // Defaults to true so the first batch of items pins the user to the bottom;
+  // flips to false once they scroll up to read history, and flips back when
+  // they scroll back down within STICK_THRESHOLD of the bottom.
+  const stickToBottomRef = useRef(true);
+
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    function onScroll() {
+      if (!el) return;
+      const distanceFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
+      stickToBottomRef.current = distanceFromBottom <= STICK_THRESHOLD;
+    }
+    el.addEventListener('scroll', onScroll, { passive: true });
+    return () => el.removeEventListener('scroll', onScroll);
+  }, []);
+
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el || !stickToBottomRef.current) return;
+    el.scrollTop = el.scrollHeight;
+  }, [items.length]);
+
   return (
     <div
       style={{
@@ -237,7 +267,7 @@ export function NarrationFeed({
           Transcript
         </div>
       </div>
-      <div style={{ flex: 1, overflow: 'auto', display: 'flex', flexDirection: 'column' }}>
+      <div ref={scrollRef} style={{ flex: 1, overflow: 'auto', display: 'flex', flexDirection: 'column' }}>
         {items.length === 0 && !streaming && (
           <div
             style={{
