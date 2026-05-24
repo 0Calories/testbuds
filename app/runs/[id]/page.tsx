@@ -17,6 +17,35 @@ import type { Persona } from '@/src/persona/types';
 import type { Step } from '@/src/agent/types';
 import type { Verdict } from '@/src/verdict/types';
 
+function connectWithBackoff(url: string, onMessage: (data: string) => void, signal: { aborted: boolean }): { close: () => void } {
+  let ws: WebSocket | undefined;
+  let delay = 250;
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  let closed = false;
+
+  const open = () => {
+    if (closed || signal.aborted) return;
+    ws = new WebSocket(url);
+    ws.onmessage = (m) => onMessage(m.data as string);
+    ws.onopen = () => { delay = 250; };
+    ws.onclose = () => {
+      if (closed || signal.aborted) return;
+      timer = setTimeout(open, delay);
+      delay = Math.min(delay * 2, 4000);
+    };
+    ws.onerror = () => { ws?.close(); };
+  };
+  open();
+
+  return {
+    close: () => {
+      closed = true;
+      if (timer) clearTimeout(timer);
+      ws?.close();
+    },
+  };
+}
+
 // Mirror of the server-side RunRecord shape (kept here to avoid pulling in node:crypto).
 interface RunRecord {
   id: string;
@@ -106,9 +135,9 @@ export default function RunViewPage({ params }: { params: Promise<{ id: string }
 
     // Live updates via /events WS.
     const wsBase = process.env.NEXT_PUBLIC_WORKER_WS ?? 'ws://localhost:5174';
-    const ws = new WebSocket(`${wsBase}/runs/${id}/events`);
-    ws.onmessage = (msg) => {
-      const event = JSON.parse(msg.data as string) as
+    const signal = { aborted: false };
+    const conn = connectWithBackoff(`${wsBase}/runs/${id}/events`, (data) => {
+      const event = JSON.parse(data) as
         | { type: 'snapshot'; payload: { run: RunRecord; steps: Step[] } }
         | { type: 'step'; payload: Step }
         | { type: 'status'; payload: { status: RunRecord['status']; verdict?: Verdict; error?: string } };
@@ -125,11 +154,12 @@ export default function RunViewPage({ params }: { params: Promise<{ id: string }
           };
         return cur;
       });
-    };
+    }, signal);
 
     return () => {
       active = false;
-      ws.close();
+      signal.aborted = true;
+      conn.close();
     };
   }, [id]);
 

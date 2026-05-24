@@ -4,6 +4,35 @@ import { useEffect, useRef } from 'react';
 import { Replayer } from '@rrweb/replay';
 import '@rrweb/replay/dist/style.css';
 
+function connectWithBackoff(url: string, onMessage: (data: string) => void, signal: { aborted: boolean }): { close: () => void } {
+  let ws: WebSocket | undefined;
+  let delay = 250;
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  let closed = false;
+
+  const open = () => {
+    if (closed || signal.aborted) return;
+    ws = new WebSocket(url);
+    ws.onmessage = (m) => onMessage(m.data as string);
+    ws.onopen = () => { delay = 250; };
+    ws.onclose = () => {
+      if (closed || signal.aborted) return;
+      timer = setTimeout(open, delay);
+      delay = Math.min(delay * 2, 4000);
+    };
+    ws.onerror = () => { ws?.close(); };
+  };
+  open();
+
+  return {
+    close: () => {
+      closed = true;
+      if (timer) clearTimeout(timer);
+      ws?.close();
+    },
+  };
+}
+
 export interface LiveReplayerProps {
   runId: string;
   /** Override the default ws://localhost:5174 (for tests / dev). */
@@ -27,10 +56,10 @@ export function LiveReplayer({ runId, wsBase }: LiveReplayerProps) {
     replayer.startLive(Date.now() - 1000);
 
     const wsUrl = `${wsBase ?? process.env.NEXT_PUBLIC_WORKER_WS ?? 'ws://localhost:5174'}/runs/${runId}/live`;
-    const ws = new WebSocket(wsUrl);
-    ws.onmessage = (msg) => {
-      try { replayer.addEvent(JSON.parse(msg.data as string)); } catch { /* ignore */ }
-    };
+    const signal = { aborted: false };
+    const conn = connectWithBackoff(wsUrl, (data) => {
+      try { replayer.addEvent(JSON.parse(data)); } catch { /* ignore */ }
+    }, signal);
 
     // Scale the rrweb iframe to fit the host container.
     const findInnerDoc = (): Document | null => host.querySelector('iframe')?.contentDocument ?? null;
@@ -76,7 +105,8 @@ export function LiveReplayer({ runId, wsBase }: LiveReplayerProps) {
     const decorator = setInterval(decorateForeignFrames, 1500);
 
     return () => {
-      ws.close();
+      signal.aborted = true;
+      conn.close();
       resizer.disconnect();
       clearInterval(decorator);
       replayer.destroy();
