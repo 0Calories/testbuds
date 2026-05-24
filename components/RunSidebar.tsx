@@ -1,5 +1,4 @@
 import type { ReactNode } from 'react';
-import { Testbud, type Expression } from './Testbud';
 import type { Costume } from '@/src/persona/types';
 
 const PERSONA_TAG: Record<string, string> = {
@@ -22,7 +21,6 @@ export interface TrailItem {
 export interface RunSidebarProps {
   personaName: string;
   costume: Costume;
-  expression: Expression;
   url: string;
   goal: string;
   elapsed: string;
@@ -96,7 +94,6 @@ function TrailStep({ state, label }: TrailItem) {
 export function RunSidebar({
   personaName,
   costume,
-  expression,
   url,
   goal,
   elapsed,
@@ -118,35 +115,12 @@ export function RunSidebar({
     >
       <div
         style={{
-          padding: '22px 22px 18px',
+          padding: '20px 22px 18px',
           borderBottom: '1px solid var(--color-line-soft)',
-          textAlign: 'center',
           background: 'var(--color-paper-deep)',
         }}
       >
-        <div style={{ position: 'relative', display: 'inline-block' }}>
-          <Testbud expression={expression} costume={costume} size={140} animated />
-          <div
-            className="mono"
-            style={{
-              position: 'absolute',
-              bottom: -2,
-              left: '50%',
-              transform: 'translateX(-50%)',
-              background: 'var(--color-ink)',
-              color: 'var(--color-paper)',
-              padding: '4px 9px',
-              borderRadius: 999,
-              fontSize: 10,
-              letterSpacing: '0.08em',
-              textTransform: 'uppercase',
-              whiteSpace: 'nowrap',
-            }}
-          >
-            {expression}
-          </div>
-        </div>
-        <div className="display" style={{ fontSize: 18, fontWeight: 600, marginTop: 18, lineHeight: 1.15 }}>
+        <div className="display" style={{ fontSize: 18, fontWeight: 600, lineHeight: 1.15 }}>
           {personaName}
         </div>
         <div

@@ -1,4 +1,5 @@
 import { Testbud, type Expression } from './Testbud';
+import type { Costume } from '@/src/persona/types';
 
 export type FeedKind = 'thought' | 'action' | 'observation' | 'friction' | 'arrived';
 
@@ -41,7 +42,7 @@ function FeedItem({ kind, expression, text }: FeedItemData) {
           overflow: 'hidden',
         }}
       >
-        <Testbud expression={expression} size={48} style={{ transform: 'translateY(4px)' }} animated />
+        <Testbud expression={expression} size={48} style={{ transform: 'translateY(4px)' }} />
       </div>
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
@@ -64,12 +65,167 @@ function FeedItem({ kind, expression, text }: FeedItemData) {
   );
 }
 
+function ThinkingDots() {
+  return (
+    <span style={{ display: 'inline-flex', gap: 4, verticalAlign: 'middle' }}>
+      <span
+        style={{
+          width: 6,
+          height: 6,
+          borderRadius: '50%',
+          background: 'var(--color-ink-4)',
+          animation: 'bounce 1s infinite',
+        }}
+      />
+      <span
+        style={{
+          width: 6,
+          height: 6,
+          borderRadius: '50%',
+          background: 'var(--color-ink-4)',
+          animation: 'bounce 1s infinite 0.15s',
+        }}
+      />
+      <span
+        style={{
+          width: 6,
+          height: 6,
+          borderRadius: '50%',
+          background: 'var(--color-ink-4)',
+          animation: 'bounce 1s infinite 0.3s',
+        }}
+      />
+    </span>
+  );
+}
+
+interface CurrentBudProps {
+  costume?: Costume;
+  expression: Expression;
+  thought?: string;
+  streaming: boolean;
+}
+
+function CurrentBud({ costume, expression, thought, streaming }: CurrentBudProps) {
+  const hasThought = thought && thought.length > 0;
+  return (
+    <div
+      style={{
+        position: 'relative',
+        flexShrink: 0,
+        padding: '18px 18px 14px',
+        borderTop: '1px solid var(--color-line-soft)',
+        background: 'var(--color-paper-deep)',
+        display: 'flex',
+        alignItems: 'flex-end',
+        gap: 10,
+        minHeight: 156,
+      }}
+    >
+      <div
+        style={{
+          flex: 1,
+          minWidth: 0,
+          display: 'flex',
+          flexDirection: 'column',
+          justifyContent: 'flex-end',
+          paddingBottom: 18,
+        }}
+      >
+        <div
+          style={{
+            position: 'relative',
+            background: 'var(--color-paper)',
+            border: '1.5px solid var(--color-line)',
+            borderRadius: 18,
+            padding: '12px 14px',
+            fontSize: 13.5,
+            lineHeight: 1.4,
+            color: hasThought ? 'var(--color-ink-2)' : 'var(--color-ink-3)',
+            fontStyle: hasThought ? 'normal' : 'italic',
+            boxShadow: '0 1px 0 rgba(0,0,0,0.02)',
+          }}
+        >
+          {hasThought ? (
+            thought
+          ) : streaming ? (
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+              <ThinkingDots /> warming up…
+            </span>
+          ) : (
+            'Just arrived. Looking around…'
+          )}
+          <span
+            aria-hidden
+            style={{
+              position: 'absolute',
+              right: -7,
+              bottom: 14,
+              width: 10,
+              height: 10,
+              background: 'var(--color-paper)',
+              border: '1.5px solid var(--color-line)',
+              borderLeft: 'none',
+              borderTop: 'none',
+              borderRadius: '0 0 3px 0',
+              transform: 'rotate(-45deg)',
+            }}
+          />
+          <span
+            aria-hidden
+            style={{
+              position: 'absolute',
+              right: -14,
+              bottom: 4,
+              width: 6,
+              height: 6,
+              background: 'var(--color-paper)',
+              border: '1.5px solid var(--color-line)',
+              borderRadius: '50%',
+            }}
+          />
+          <span
+            aria-hidden
+            style={{
+              position: 'absolute',
+              right: -22,
+              bottom: -2,
+              width: 4,
+              height: 4,
+              background: 'var(--color-paper)',
+              border: '1.5px solid var(--color-line)',
+              borderRadius: '50%',
+            }}
+          />
+        </div>
+        {streaming && hasThought && (
+          <div style={{ marginTop: 8, paddingLeft: 4 }}>
+            <ThinkingDots />
+          </div>
+        )}
+      </div>
+      <div style={{ flexShrink: 0, alignSelf: 'flex-end' }}>
+        <Testbud expression={expression} costume={costume} size={120} animated />
+      </div>
+    </div>
+  );
+}
+
 export interface NarrationFeedProps {
   items: FeedItemData[];
   streaming?: boolean;
+  costume?: Costume;
+  currentExpression?: Expression;
+  currentThought?: string;
 }
 
-export function NarrationFeed({ items, streaming = false }: NarrationFeedProps) {
+export function NarrationFeed({
+  items,
+  streaming = false,
+  costume,
+  currentExpression = 'neutral',
+  currentThought,
+}: NarrationFeedProps) {
   return (
     <div
       style={{
@@ -118,51 +274,15 @@ export function NarrationFeed({ items, streaming = false }: NarrationFeedProps) 
         {items.map((it) => (
           <FeedItem key={it.index} {...it} />
         ))}
-        {streaming && (
-          <div
-            style={{
-              padding: '14px 18px',
-              display: 'flex',
-              alignItems: 'center',
-              gap: 10,
-              color: 'var(--color-ink-3)',
-              fontSize: 13,
-              fontStyle: 'italic',
-            }}
-          >
-            <span style={{ display: 'inline-flex', gap: 3 }}>
-              <span
-                style={{
-                  width: 6,
-                  height: 6,
-                  borderRadius: '50%',
-                  background: 'var(--color-ink-4)',
-                  animation: 'bounce 1s infinite',
-                }}
-              />
-              <span
-                style={{
-                  width: 6,
-                  height: 6,
-                  borderRadius: '50%',
-                  background: 'var(--color-ink-4)',
-                  animation: 'bounce 1s infinite 0.15s',
-                }}
-              />
-              <span
-                style={{
-                  width: 6,
-                  height: 6,
-                  borderRadius: '50%',
-                  background: 'var(--color-ink-4)',
-                  animation: 'bounce 1s infinite 0.3s',
-                }}
-              />
-            </span>
-            the bud is thinking
-          </div>
-        )}
       </div>
+      {streaming && (
+        <CurrentBud
+          costume={costume}
+          expression={currentExpression}
+          thought={currentThought}
+          streaming={streaming}
+        />
+      )}
     </div>
   );
 }
