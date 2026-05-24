@@ -1,5 +1,5 @@
 import Database from 'better-sqlite3';
-import { mkdirSync } from 'node:fs';
+import { mkdirSync, appendFileSync, readFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { randomUUID } from 'node:crypto';
 import type { Verdict } from '../verdict/types';
@@ -139,9 +139,68 @@ export class Store {
     `).run(error, Date.now(), id);
   }
 
-  appendStep(_runId: string, _step: Step): void {
-    // Implemented in Task 5.
-    throw new Error('appendStep: not implemented yet');
+  appendStep(runId: string, step: Step): void {
+    this.db.prepare(`
+      INSERT INTO steps (run_id, idx, url, bubble, narration, emotion, intensity,
+                         action_kind, action_payload_json, action_result, action_error)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(
+      runId,
+      step.index,
+      step.url,
+      step.bubble,
+      step.narration,
+      step.reaction.emotion,
+      step.reaction.intensity,
+      step.action.kind,
+      JSON.stringify(step.action),
+      step.actionResult,
+      step.actionError ?? null,
+    );
+  }
+
+  getRunSteps(runId: string): Step[] {
+    const rows = this.db.prepare(`
+      SELECT * FROM steps WHERE run_id = ? ORDER BY idx ASC
+    `).all(runId) as Array<{
+      idx: number; url: string; bubble: string | null; narration: string | null;
+      emotion: string; intensity: number; action_kind: string;
+      action_payload_json: string; action_result: 'ok' | 'failed' | 'n/a'; action_error: string | null;
+    }>;
+    return rows.map((row) => ({
+      index: row.idx,
+      url: row.url,
+      bubble: row.bubble ?? '',
+      narration: row.narration ?? '',
+      reaction: { emotion: row.emotion as Step['reaction']['emotion'], intensity: row.intensity },
+      action: JSON.parse(row.action_payload_json) as Step['action'],
+      actionResult: row.action_result,
+      actionError: row.action_error ?? undefined,
+    }));
+  }
+
+  private rrwebPath(runId: string): string {
+    const dir = join(this.dataDir, 'runs', runId);
+    mkdirSync(dir, { recursive: true });
+    return join(dir, 'rrweb.ndjson');
+  }
+
+  appendRrwebEvent(runId: string, event: unknown): void {
+    try {
+      appendFileSync(this.rrwebPath(runId), JSON.stringify(event) + '\n');
+    } catch (err) {
+      console.error('[store] rrweb append failed:', err);
+      // Per spec: never fail a run because the archive hiccuped.
+    }
+  }
+
+  readRrwebArchive(runId: string): unknown[] {
+    const path = this.rrwebPath(runId);
+    if (!existsSync(path)) return [];
+    return readFileSync(path, 'utf8')
+      .split('\n')
+      .filter((l) => l.length > 0)
+      .map((l) => JSON.parse(l));
   }
 
   close(): void {
