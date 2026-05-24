@@ -30,13 +30,14 @@ export const TB = {
 } as const;
 
 // ── Body parts (palette is locked to "sage") ─────────────────────────────
-function TBFeet() {
-  return (
-    <g>
-      <ellipse cx="82" cy="202" rx="11" ry="5" fill={TB.bodyDeep} />
-      <ellipse cx="118" cy="202" rx="11" ry="5" fill={TB.bodyDeep} />
-    </g>
-  );
+// Idle float: the bud bobs ~6 SVG units. The ground shadow stays put — its
+// fixed footprint reads as the surface the bud is hovering above.
+const FLOAT_DUR = '3.2s';
+const FLOAT_KEYTIMES = '0;0.5;1';
+const FLOAT_KEYSPLINES = '0.42 0 0.58 1;0.42 0 0.58 1';
+
+function TBShadow() {
+  return <ellipse cx="100" cy="210" rx="56" ry="5" fill="rgba(0,0,0,0.10)" />;
 }
 
 type ArmPose = 'rest' | 'hold' | 'up' | 'hide';
@@ -73,7 +74,6 @@ function TBBody() {
   const clipId = 'tb-body-clip';
   return (
     <g>
-      <ellipse cx="100" cy="210" rx="56" ry="5" fill="rgba(0,0,0,0.10)" />
       <defs>
         <clipPath id={clipId}>
           <ellipse cx="100" cy="132" rx="64" ry="68" />
@@ -583,13 +583,20 @@ export interface TestbudProps {
   size?: number;
   style?: CSSProperties;
   title?: string;
+  /** Opt-in idle bob. Reserved for live previews and the active selection. Default: false. */
+  animated?: boolean;
 }
 
 /**
  * The Testbud mascot. One species, eight costumes, seven expressions.
  *
- * Body, sprout, feet, and arms never change with expression — the expression is
+ * Body, sprout, and arms never change with expression — the expression is
  * carried entirely by eyes + brows + mouth + optional extras (sweat / anger / `?`).
+ *
+ * The bud has no feet. Pass `animated` to add a continuous idle bob — reserved
+ * for surfaces where the bud is "live" (active selection, narration avatar,
+ * run sidebar, hero preview). The ground shadow stays static even while the
+ * bud bobs, so it reads as a fixed footprint the bud is hovering above.
  */
 export function Testbud({
   expression = 'neutral',
@@ -597,6 +604,7 @@ export function Testbud({
   size = 180,
   style,
   title,
+  animated = false,
 }: TestbudProps) {
   const c = costume ? COSTUMES[costume] : null;
   return (
@@ -609,12 +617,26 @@ export function Testbud({
       aria-label={title ?? `Testbud, ${expression}${costume ? `, ${costume}` : ''}`}
     >
       {title && <title>{title}</title>}
-      <TBFeet />
-      <TBArms pose={c ? c.arms : 'rest'} />
-      <TBBody />
-      {!(c && c.hidesSprout) && <TBSprout />}
-      <Face expression={expression} />
-      {c && c.draw()}
+      <TBShadow />
+      <g>
+        {animated && (
+          <animateTransform
+            attributeName="transform"
+            type="translate"
+            values="0 0;0 -6;0 0"
+            keyTimes={FLOAT_KEYTIMES}
+            dur={FLOAT_DUR}
+            repeatCount="indefinite"
+            calcMode="spline"
+            keySplines={FLOAT_KEYSPLINES}
+          />
+        )}
+        <TBArms pose={c ? c.arms : 'rest'} />
+        <TBBody />
+        {!(c && c.hidesSprout) && <TBSprout />}
+        <Face expression={expression} />
+        {c && c.draw()}
+      </g>
     </svg>
   );
 }

@@ -16,7 +16,7 @@ export interface RunRecord {
   viewport: ViewportMode;
   status: RunStatus;
   startedAt: number;
-  endedAt?: number;
+  completedAt?: number;
   verdict?: Verdict;
   error?: string;
 }
@@ -41,7 +41,7 @@ CREATE TABLE IF NOT EXISTS runs (
   viewport      TEXT NOT NULL CHECK (viewport IN ('desktop','mobile')),
   status        TEXT NOT NULL CHECK (status IN ('starting','running','completed','failed')),
   started_at    INTEGER NOT NULL,
-  ended_at      INTEGER,
+  completed_at  INTEGER,
   verdict_json  TEXT,
   error         TEXT
 );
@@ -100,7 +100,7 @@ export class Store {
       | {
           id: string; persona_slug: string; target_url: string; goal: string;
           viewport: ViewportMode; status: RunStatus; started_at: number;
-          ended_at: number | null; verdict_json: string | null; error: string | null;
+          completed_at: number | null; verdict_json: string | null; error: string | null;
         }
       | undefined;
     if (!row) return undefined;
@@ -112,7 +112,7 @@ export class Store {
       viewport: row.viewport,
       status: row.status,
       startedAt: row.started_at,
-      endedAt: row.ended_at ?? undefined,
+      completedAt: row.completed_at ?? undefined,
       verdict: row.verdict_json ? (JSON.parse(row.verdict_json) as Verdict) : undefined,
       error: row.error ?? undefined,
     };
@@ -129,13 +129,13 @@ export class Store {
 
   completeRun(id: string, verdict: Verdict): void {
     this.db.prepare(`
-      UPDATE runs SET status = 'completed', verdict_json = ?, ended_at = ? WHERE id = ?
+      UPDATE runs SET status = 'completed', verdict_json = ?, completed_at = ? WHERE id = ?
     `).run(JSON.stringify(verdict), Date.now(), id);
   }
 
   failRun(id: string, error: string): void {
     this.db.prepare(`
-      UPDATE runs SET status = 'failed', error = ?, ended_at = ? WHERE id = ?
+      UPDATE runs SET status = 'failed', error = ?, completed_at = ? WHERE id = ?
     `).run(error, Date.now(), id);
   }
 

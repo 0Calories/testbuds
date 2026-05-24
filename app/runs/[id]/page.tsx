@@ -58,6 +58,7 @@ interface RunRecord {
   verdict?: Verdict;
   error?: string;
   startedAt: number;
+  completedAt?: number;
 }
 
 function formatElapsed(ms: number): string {
@@ -78,7 +79,7 @@ function classifyKind(step: Step): FeedKind {
 function buildTrailItems(steps: Step[], running: boolean): TrailItem[] {
   const items: TrailItem[] = steps.map((s) => ({
     state: 'done' as const,
-    label: s.bubble || shortLabelFor(s),
+    label: trailActionFor(s) ?? 'Thinking',
   }));
   if (running) {
     items.push({ state: 'active', label: 'Thinking…' });
@@ -86,11 +87,21 @@ function buildTrailItems(steps: Step[], running: boolean): TrailItem[] {
   return items;
 }
 
-function shortLabelFor(step: Step): string {
-  if (step.action.kind === 'finish') return `Decided — ${step.action.outcome}`;
-  if (step.action.kind === 'navigate' && step.action.url) return `Went to ${truncateUrl(step.action.url)}`;
-  if (step.narration) return step.narration.slice(0, 60) + (step.narration.length > 60 ? '…' : '');
-  return `Step ${step.index}`;
+/** Third-person description of what the bud did this step, for the trail. */
+function trailActionFor(step: Step): string | undefined {
+  const a = step.action;
+  if (a.kind === 'navigate' && a.url) return `Going to ${truncateUrl(a.url)}`;
+  if (a.kind === 'finish') {
+    if (a.outcome === 'gave_up') return 'Giving up';
+    if (a.outcome === 'completed') return 'Wrapping up';
+    return 'Finishing';
+  }
+  const hasInstruction =
+    a.instruction && a.instruction.length > 0 && a.instruction !== '(no browser action)';
+  if (hasInstruction) {
+    return a.instruction!.length > 70 ? a.instruction!.slice(0, 69) + '…' : a.instruction!;
+  }
+  return undefined;
 }
 
 function truncateUrl(url: string): string {
@@ -163,11 +174,15 @@ export default function RunViewPage({ params }: { params: Promise<{ id: string }
     };
   }, [id]);
 
-  // Tick once a second so elapsed time refreshes between polls.
+  // Tick once a second so elapsed time refreshes between polls. Stop ticking
+  // once the run reaches a terminal state — elapsed is then locked to
+  // completedAt - startedAt and doesn't need refreshing.
+  const terminal = run?.status === 'completed' || run?.status === 'failed';
   useEffect(() => {
+    if (terminal) return;
     const i = setInterval(() => setTick((n) => n + 1), 1000);
     return () => clearInterval(i);
-  }, []);
+  }, [terminal]);
 
   if (notFound) {
     return (
@@ -228,12 +243,21 @@ export default function RunViewPage({ params }: { params: Promise<{ id: string }
   }
 
   const running = run.status === 'starting' || run.status === 'running';
-  const elapsed = formatElapsed(Date.now() - run.startedAt);
+  const elapsed = formatElapsed((run.completedAt ?? Date.now()) - run.startedAt);
   const status = statusLabel(run, elapsed);
+  const latestStep = run.steps.length > 0 ? run.steps[run.steps.length - 1]! : undefined;
   const latestExpression: Expression =
-    run.steps.length > 0
-      ? (run.steps[run.steps.length - 1]!.reaction.emotion as Expression)
-      : 'neutral';
+    (latestStep?.reaction.emotion as Expression | undefined) ?? 'neutral';
+  // Carry over the most recent non-empty bubble so the thought persists across
+  // observation-only steps where the agent didn't call `react`.
+  let currentThought: string | undefined;
+  for (let i = run.steps.length - 1; i >= 0; i--) {
+    const b = run.steps[i]!.bubble;
+    if (b && b.length > 0) {
+      currentThought = b;
+      break;
+    }
+  }
 
   const feedItems: FeedItemData[] = run.steps
     .filter((s) => s.narration && s.narration.length > 0)
@@ -278,7 +302,6 @@ export default function RunViewPage({ params }: { params: Promise<{ id: string }
         <RunSidebar
           personaName={run.persona.name}
           costume={run.persona.costume}
-          expression={latestExpression}
           url={run.targetUrl}
           goal={run.goal}
           elapsed={elapsed}
@@ -315,7 +338,13 @@ export default function RunViewPage({ params }: { params: Promise<{ id: string }
             <div style={{ fontSize: 14, color: 'var(--color-ink-2)', lineHeight: 1.5 }}>{run.error}</div>
           </div>
         ) : (
-          <NarrationFeed items={feedItems} streaming={running} />
+          <NarrationFeed
+            items={feedItems}
+            streaming={running}
+            costume={run.persona.costume}
+            currentExpression={latestExpression}
+            currentThought={currentThought}
+          />
         )}
       </div>
     </div>

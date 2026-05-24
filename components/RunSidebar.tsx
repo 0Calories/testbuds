@@ -1,5 +1,4 @@
 import type { ReactNode } from 'react';
-import { Testbud, type Expression } from './Testbud';
 import type { Costume } from '@/src/persona/types';
 
 const PERSONA_TAG: Record<string, string> = {
@@ -16,13 +15,13 @@ const PERSONA_TAG: Record<string, string> = {
 export type TrailState = 'done' | 'active' | 'idle';
 export interface TrailItem {
   state: TrailState;
+  /** Third-person description of what the bud is doing this step. */
   label: string;
 }
 
 export interface RunSidebarProps {
   personaName: string;
   costume: Costume;
-  expression: Expression;
   url: string;
   goal: string;
   elapsed: string;
@@ -80,14 +79,16 @@ function DotIdle() {
 }
 
 function TrailStep({ state, label }: TrailItem) {
-  const color =
-    state === 'done' ? 'var(--color-bud-deep)' : state === 'active' ? 'var(--color-ink)' : 'var(--color-ink-4)';
+  const labelColor =
+    state === 'done' ? 'var(--color-ink)' : state === 'active' ? 'var(--color-ink)' : 'var(--color-ink-4)';
   const dot = state === 'done' ? <DotCheck /> : state === 'active' ? <DotActive /> : <DotIdle />;
   return (
     <div style={{ display: 'flex', gap: 10, padding: '6px 0', position: 'relative' }}>
       <div style={{ width: 18, display: 'flex', justifyContent: 'center', paddingTop: 3 }}>{dot}</div>
-      <div style={{ flex: 1 }}>
-        <span style={{ fontSize: 13, color, fontWeight: state === 'active' ? 500 : 400 }}>{label}</span>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ fontSize: 13, color: labelColor, fontWeight: state === 'active' ? 500 : 400, lineHeight: 1.4 }}>
+          {label}
+        </div>
       </div>
     </div>
   );
@@ -96,7 +97,6 @@ function TrailStep({ state, label }: TrailItem) {
 export function RunSidebar({
   personaName,
   costume,
-  expression,
   url,
   goal,
   elapsed,
@@ -118,35 +118,12 @@ export function RunSidebar({
     >
       <div
         style={{
-          padding: '22px 22px 18px',
+          padding: '20px 22px 18px',
           borderBottom: '1px solid var(--color-line-soft)',
-          textAlign: 'center',
           background: 'var(--color-paper-deep)',
         }}
       >
-        <div style={{ position: 'relative', display: 'inline-block' }}>
-          <Testbud expression={expression} costume={costume} size={140} />
-          <div
-            className="mono"
-            style={{
-              position: 'absolute',
-              bottom: -2,
-              left: '50%',
-              transform: 'translateX(-50%)',
-              background: 'var(--color-ink)',
-              color: 'var(--color-paper)',
-              padding: '4px 9px',
-              borderRadius: 999,
-              fontSize: 10,
-              letterSpacing: '0.08em',
-              textTransform: 'uppercase',
-              whiteSpace: 'nowrap',
-            }}
-          >
-            {expression}
-          </div>
-        </div>
-        <div className="display" style={{ fontSize: 18, fontWeight: 600, marginTop: 18, lineHeight: 1.15 }}>
+        <div className="display" style={{ fontSize: 18, fontWeight: 600, lineHeight: 1.15 }}>
           {personaName}
         </div>
         <div
