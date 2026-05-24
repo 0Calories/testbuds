@@ -188,10 +188,10 @@ export default function RunViewPage({ params }: { params: Promise<{ id: string }
   const running = run.status === 'starting' || run.status === 'running';
   const elapsed = formatElapsed((run.completedAt ?? Date.now()) - run.startedAt);
   const status = statusLabel(run, elapsed);
+  const latestStep = run.steps.length > 0 ? run.steps[run.steps.length - 1]! : undefined;
   const latestExpression: Expression =
-    run.steps.length > 0
-      ? (run.steps[run.steps.length - 1]!.reaction.emotion as Expression)
-      : 'neutral';
+    (latestStep?.reaction.emotion as Expression | undefined) ?? 'neutral';
+  const currentThought = latestStep?.bubble;
 
   const feedItems: FeedItemData[] = run.steps
     .filter((s) => s.narration && s.narration.length > 0)
@@ -236,7 +236,6 @@ export default function RunViewPage({ params }: { params: Promise<{ id: string }
         <RunSidebar
           personaName={run.persona.name}
           costume={run.persona.costume}
-          expression={latestExpression}
           url={run.targetUrl}
           goal={run.goal}
           elapsed={elapsed}
@@ -273,7 +272,13 @@ export default function RunViewPage({ params }: { params: Promise<{ id: string }
             <div style={{ fontSize: 14, color: 'var(--color-ink-2)', lineHeight: 1.5 }}>{run.error}</div>
           </div>
         ) : (
-          <NarrationFeed items={feedItems} streaming={running} />
+          <NarrationFeed
+            items={feedItems}
+            streaming={running}
+            costume={run.persona.costume}
+            currentExpression={latestExpression}
+            currentThought={currentThought}
+          />
         )}
       </div>
     </div>
