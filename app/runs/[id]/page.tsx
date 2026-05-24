@@ -49,11 +49,17 @@ function classifyKind(step: Step): FeedKind {
 }
 
 function buildTrailItems(steps: Step[], running: boolean): TrailItem[] {
-  const items: TrailItem[] = steps.map((s) => ({
-    state: 'done' as const,
-    label: trailLabelFor(s),
-    thought: s.narration && s.narration.length > 0 ? s.narration : undefined,
-  }));
+  const items: TrailItem[] = steps.map((s) => {
+    const action = trailActionFor(s);
+    const narration = s.narration && s.narration.length > 0 ? s.narration : undefined;
+    // Headline = the persona's narration. Subtitle = the third-person action.
+    // If there's no narration to lead with, fall back to the action as the headline.
+    return {
+      state: 'done' as const,
+      label: narration ?? action ?? 'Thinking',
+      action: narration ? action : undefined,
+    };
+  });
   if (running) {
     items.push({ state: 'active', label: 'Thinking…' });
   }
@@ -61,11 +67,10 @@ function buildTrailItems(steps: Step[], running: boolean): TrailItem[] {
 }
 
 /**
- * Third-person description of what the bud did this step, for the trail.
- * The trail row is paired with the persona's narration (as a subtitle) so the
- * "what they did" and "what they thought" sit together in the timeline.
+ * Third-person description of what the bud did this step. Rendered as the
+ * trail subtitle under the persona's narration.
  */
-function trailLabelFor(step: Step): string {
+function trailActionFor(step: Step): string | undefined {
   const a = step.action;
   if (a.kind === 'navigate' && a.url) return `Going to ${truncateUrl(a.url)}`;
   if (a.kind === 'finish') {
@@ -78,9 +83,7 @@ function trailLabelFor(step: Step): string {
   if (hasInstruction) {
     return a.instruction!.length > 70 ? a.instruction!.slice(0, 69) + '…' : a.instruction!;
   }
-  // Pure-thought step (persona only called `react`, no browser tool). The
-  // narration carries the meaning — surface that as the row label.
-  return 'Thinking';
+  return undefined;
 }
 
 function truncateUrl(url: string): string {

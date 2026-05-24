@@ -15,9 +15,10 @@ const PERSONA_TAG: Record<string, string> = {
 export type TrailState = 'done' | 'active' | 'idle';
 export interface TrailItem {
   state: TrailState;
+  /** Headline: the persona's in-character narration. */
   label: string;
-  /** Optional in-character thought, rendered as a muted subtitle under the label. */
-  thought?: string;
+  /** Optional third-person action label, rendered as a muted subtitle. */
+  action?: string;
 }
 
 export interface RunSidebarProps {
@@ -79,26 +80,28 @@ function DotIdle() {
   );
 }
 
-function TrailStep({ state, label, thought }: TrailItem) {
-  const color =
-    state === 'done' ? 'var(--color-bud-deep)' : state === 'active' ? 'var(--color-ink)' : 'var(--color-ink-4)';
+function TrailStep({ state, label, action }: TrailItem) {
+  const labelColor =
+    state === 'done' ? 'var(--color-ink)' : state === 'active' ? 'var(--color-ink)' : 'var(--color-ink-4)';
   const dot = state === 'done' ? <DotCheck /> : state === 'active' ? <DotActive /> : <DotIdle />;
   return (
     <div style={{ display: 'flex', gap: 10, padding: '6px 0', position: 'relative' }}>
       <div style={{ width: 18, display: 'flex', justifyContent: 'center', paddingTop: 3 }}>{dot}</div>
       <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ fontSize: 13, color, fontWeight: state === 'active' ? 500 : 400 }}>{label}</div>
-        {thought ? (
+        <div style={{ fontSize: 13, color: labelColor, fontWeight: state === 'active' ? 500 : 400, lineHeight: 1.4 }}>
+          {label}
+        </div>
+        {action ? (
           <div
+            className="mono"
             style={{
-              fontSize: 12,
+              fontSize: 10,
               color: 'var(--color-ink-3)',
-              fontStyle: 'italic',
-              lineHeight: 1.4,
-              marginTop: 2,
+              letterSpacing: '0.04em',
+              marginTop: 3,
             }}
           >
-            “{thought}”
+            {action}
           </div>
         ) : null}
       </div>
