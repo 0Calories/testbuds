@@ -240,7 +240,7 @@ function Stepper({
     <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 22 }}>
       <StepPill
         index={1}
-        label="Pick a bud"
+        label="Choose your bud"
         active={step === 1}
         clickable={step === 2}
         onClick={step === 2 ? onJumpToStep1 : undefined}
@@ -436,7 +436,7 @@ export default function NewRunPage() {
                   className="display"
                   style={{ fontSize: 48, fontWeight: 600, letterSpacing: '-0.03em', margin: '4px 0 32px', lineHeight: 1 }}
                 >
-                  Pick a bud.
+                  Choose your bud.
                 </h1>
 
                 <SegmentSection
