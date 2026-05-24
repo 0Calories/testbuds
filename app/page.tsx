@@ -423,7 +423,7 @@ export default function NewRunPage() {
 
   return (
     <div style={{ minHeight: '100vh', background: 'var(--color-paper)', display: 'flex', flexDirection: 'column' }}>
-      <AppHeader title="New run" status="Draft" statusKind="draft" />
+      <AppHeader title="New run" />
       <div style={{ flex: 1, display: 'flex', overflow: 'auto' }}>
         {/* Main column */}
         <div style={{ flex: 1, padding: '40px 56px 56px' }}>
@@ -712,61 +712,62 @@ export default function NewRunPage() {
           >
             Your bud
           </div>
-          {persona ? (
+          <div
+            style={{
+              background: 'var(--color-paper)',
+              borderRadius: 18,
+              padding: '24px 18px 20px',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              opacity: persona ? 1 : 0.4,
+              transition: 'opacity 0.2s',
+            }}
+          >
+            <Testbud
+              expression={persona ? 'pleased' : 'neutral'}
+              costume={persona?.costume}
+              size={200}
+              animated={persona !== undefined}
+            />
             <div
+              className="display"
               style={{
-                background: 'var(--color-paper)',
-                borderRadius: 18,
-                padding: '24px 18px 20px',
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-              }}
-            >
-              <Testbud expression="pleased" costume={persona.costume} size={200} animated />
-              <div className="display" style={{ fontSize: 22, fontWeight: 600, marginTop: 14, textAlign: 'center' }}>
-                {persona.name}
-              </div>
-              <div
-                className="mono"
-                style={{
-                  fontSize: 10,
-                  color: 'var(--color-ink-3)',
-                  letterSpacing: '0.08em',
-                  textTransform: 'uppercase',
-                  marginTop: 4,
-                }}
-              >
-                {PERSONA_TAG[persona.slug]}
-              </div>
-              <div
-                style={{
-                  fontSize: 13,
-                  color: 'var(--color-ink-3)',
-                  textAlign: 'center',
-                  lineHeight: 1.5,
-                  marginTop: 14,
-                }}
-              >
-                {persona.identity.context}
-              </div>
-            </div>
-          ) : (
-            <div
-              style={{
-                background: 'var(--color-paper)',
-                borderRadius: 18,
-                padding: '40px 18px',
+                fontSize: 22,
+                fontWeight: 600,
+                marginTop: 14,
                 textAlign: 'center',
-                color: 'var(--color-ink-3)',
-                fontSize: 13,
-                lineHeight: 1.5,
-                border: '1px dashed var(--color-line)',
+                visibility: persona ? 'visible' : 'hidden',
               }}
             >
-              Pick a bud to see them here.
+              {persona?.name ?? 'Placeholder Name'}
             </div>
-          )}
+            <div
+              className="mono"
+              style={{
+                fontSize: 10,
+                color: 'var(--color-ink-3)',
+                letterSpacing: '0.08em',
+                textTransform: 'uppercase',
+                marginTop: 4,
+                visibility: persona ? 'visible' : 'hidden',
+              }}
+            >
+              {persona ? PERSONA_TAG[persona.slug] : 'B2X · ROLE'}
+            </div>
+            <div
+              style={{
+                fontSize: 13,
+                color: 'var(--color-ink-3)',
+                textAlign: 'center',
+                lineHeight: 1.5,
+                marginTop: 14,
+                visibility: persona ? 'visible' : 'hidden',
+              }}
+            >
+              {persona?.identity.context ?? 'A short identity line that reserves vertical space.'}
+            </div>
+          </div>
 
           {step === 1 && notices.length > 0 && (
             <div style={{ marginTop: 24 }}>
@@ -815,7 +816,7 @@ export default function NewRunPage() {
               borderTop: '1px solid var(--color-line)',
             }}
           >
-            Buds run in a sandboxed Chromium on Browserbase. Nothing the bud sees leaves your workspace.
+            Buds run in a sandboxed Chromium. Nothing the bud sees leaves your workspace.
           </div>
         </div>
       </div>
