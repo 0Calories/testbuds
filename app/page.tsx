@@ -291,7 +291,47 @@ function SegmentSection({
   );
 }
 
-function PlanRow({ label, value }: { label: string; value: ReactNode }) {
+function PlanRow({
+  label,
+  value,
+  stacked = false,
+}: {
+  label: string;
+  value: ReactNode;
+  stacked?: boolean;
+}) {
+  const labelEl = (
+    <span
+      className="mono"
+      style={{
+        color: 'var(--color-ink-3)',
+        fontSize: 10.5,
+        letterSpacing: '0.08em',
+        textTransform: 'uppercase',
+        flexShrink: 0,
+        paddingTop: 2,
+      }}
+    >
+      {label}
+    </span>
+  );
+  if (stacked) {
+    return (
+      <div
+        style={{
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 6,
+          fontSize: 13,
+          padding: '8px 0',
+          borderBottom: '1px solid var(--color-line)',
+        }}
+      >
+        {labelEl}
+        <span style={{ color: 'var(--color-ink)', wordBreak: 'break-word' }}>{value}</span>
+      </div>
+    );
+  }
   return (
     <div
       style={{
@@ -304,19 +344,7 @@ function PlanRow({ label, value }: { label: string; value: ReactNode }) {
         borderBottom: '1px solid var(--color-line)',
       }}
     >
-      <span
-        className="mono"
-        style={{
-          color: 'var(--color-ink-3)',
-          fontSize: 10.5,
-          letterSpacing: '0.08em',
-          textTransform: 'uppercase',
-          flexShrink: 0,
-          paddingTop: 2,
-        }}
-      >
-        {label}
-      </span>
+      {labelEl}
       <span
         style={{
           color: 'var(--color-ink)',
@@ -361,7 +389,7 @@ function PlanSummary({
         Plan
       </div>
       <PlanRow label="URL" value={targetUrl ? targetUrl : placeholder('Not set')} />
-      <PlanRow label="Goal" value={goal ? truncatedGoal : placeholder('Not set')} />
+      <PlanRow label="Goal" value={goal ? truncatedGoal : placeholder('Not set')} stacked />
       <PlanRow label="Viewport" value={mobile ? 'Mobile' : 'Desktop'} />
       <PlanRow label="Login" value={username ? username : placeholder('—')} />
     </div>
