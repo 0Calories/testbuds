@@ -57,8 +57,3 @@ body {
   0%, 100% { transform: translateY(0); }
   50% { transform: translateY(-3px); }
 }
-/* Matches the bud's idle float (FLOAT_DUR = 3.2s, ease-in-out). */
-@keyframes bud-float {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-5px); }
-}

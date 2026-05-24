@@ -30,39 +30,14 @@ export const TB = {
 } as const;
 
 // ── Body parts (palette is locked to "sage") ─────────────────────────────
-// Idle float: the bud bobs ~6 SVG units; the shadow shrinks and lightens in
-// counterphase so it reads as the bud lifting off the ground.
+// Idle float: the bud bobs ~6 SVG units. The ground shadow stays put — its
+// fixed footprint reads as the surface the bud is hovering above.
 const FLOAT_DUR = '3.2s';
 const FLOAT_KEYTIMES = '0;0.5;1';
 const FLOAT_KEYSPLINES = '0.42 0 0.58 1;0.42 0 0.58 1';
 
-function TBShadow({ animated }: { animated: boolean }) {
-  return (
-    <ellipse cx="100" cy="210" rx="56" ry="5" fill="rgba(0,0,0,0.10)">
-      {animated && (
-        <>
-          <animate
-            attributeName="rx"
-            values="56;48;56"
-            keyTimes={FLOAT_KEYTIMES}
-            dur={FLOAT_DUR}
-            repeatCount="indefinite"
-            calcMode="spline"
-            keySplines={FLOAT_KEYSPLINES}
-          />
-          <animate
-            attributeName="opacity"
-            values="1;0.55;1"
-            keyTimes={FLOAT_KEYTIMES}
-            dur={FLOAT_DUR}
-            repeatCount="indefinite"
-            calcMode="spline"
-            keySplines={FLOAT_KEYSPLINES}
-          />
-        </>
-      )}
-    </ellipse>
-  );
+function TBShadow() {
+  return <ellipse cx="100" cy="210" rx="56" ry="5" fill="rgba(0,0,0,0.10)" />;
 }
 
 type ArmPose = 'rest' | 'hold' | 'up' | 'hide';
@@ -608,7 +583,7 @@ export interface TestbudProps {
   size?: number;
   style?: CSSProperties;
   title?: string;
-  /** Opt-in idle bob + counter-phasing shadow. Reserved for live previews and the active selection. Default: false. */
+  /** Opt-in idle bob. Reserved for live previews and the active selection. Default: false. */
   animated?: boolean;
 }
 
@@ -618,10 +593,10 @@ export interface TestbudProps {
  * Body, sprout, and arms never change with expression — the expression is
  * carried entirely by eyes + brows + mouth + optional extras (sweat / anger / `?`).
  *
- * The bud has no feet. Pass `animated` to add a continuous idle bob with a
- * counter-phasing ground shadow — reserved for surfaces where the bud is
- * "live" (active selection, narration avatar, run sidebar, hero preview).
- * Everywhere else it renders still so grids and galleries stay calm.
+ * The bud has no feet. Pass `animated` to add a continuous idle bob — reserved
+ * for surfaces where the bud is "live" (active selection, narration avatar,
+ * run sidebar, hero preview). The ground shadow stays static even while the
+ * bud bobs, so it reads as a fixed footprint the bud is hovering above.
  */
 export function Testbud({
   expression = 'neutral',
@@ -642,7 +617,7 @@ export function Testbud({
       aria-label={title ?? `Testbud, ${expression}${costume ? `, ${costume}` : ''}`}
     >
       {title && <title>{title}</title>}
-      <TBShadow animated={animated} />
+      <TBShadow />
       <g>
         {animated && (
           <animateTransform
