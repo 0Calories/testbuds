@@ -33,6 +33,34 @@ export function LiveReplayer({ runId, wsBase }: LiveReplayerProps) {
     };
 
     // Scale the rrweb iframe to fit the host container.
+    const findInnerDoc = (): Document | null => host.querySelector('iframe')?.contentDocument ?? null;
+
+    const decorateForeignFrames = () => {
+      const doc = findInnerDoc();
+      if (!doc) return;
+      const frames = doc.querySelectorAll('iframe');
+      frames.forEach((f) => {
+        // Cannot read cross-origin contentDocument; safe to assume blank.
+        let blank = false;
+        try {
+          blank = !f.contentDocument || f.contentDocument.body.childElementCount === 0;
+        } catch {
+          blank = true;
+        }
+        if (!blank) return;
+        if (f.dataset.testbudsBadged === '1') return;
+        f.dataset.testbudsBadged = '1';
+        const tag = doc.createElement('div');
+        tag.textContent = '3rd-party widget (live view unavailable)';
+        tag.style.cssText = 'position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:repeating-linear-gradient(45deg,#f5f1e6,#f5f1e6 10px,#ece6d5 10px,#ece6d5 20px);color:#a39786;font:11px ui-monospace,monospace;pointer-events:none;';
+        const wrap = doc.createElement('div');
+        wrap.style.cssText = 'position:relative';
+        f.parentNode?.insertBefore(wrap, f);
+        wrap.appendChild(f);
+        wrap.appendChild(tag);
+      });
+    };
+
     const resizer = new ResizeObserver(() => {
       const iframe = host.querySelector('iframe');
       if (!iframe) return;
@@ -41,12 +69,16 @@ export function LiveReplayer({ runId, wsBase }: LiveReplayerProps) {
       iframe.style.transform = `scale(${scale})`;
       iframe.style.transformOrigin = 'top left';
       host.style.height = `${iframe.offsetHeight * scale}px`;
+      decorateForeignFrames();
     });
     resizer.observe(host);
+
+    const decorator = setInterval(decorateForeignFrames, 1500);
 
     return () => {
       ws.close();
       resizer.disconnect();
+      clearInterval(decorator);
       replayer.destroy();
     };
   }, [runId, wsBase]);
