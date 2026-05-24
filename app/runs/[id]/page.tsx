@@ -52,6 +52,7 @@ function buildTrailItems(steps: Step[], running: boolean): TrailItem[] {
   const items: TrailItem[] = steps.map((s) => ({
     state: 'done' as const,
     label: trailLabelFor(s),
+    thought: s.narration && s.narration.length > 0 ? s.narration : undefined,
   }));
   if (running) {
     items.push({ state: 'active', label: 'Thinking…' });
@@ -61,8 +62,8 @@ function buildTrailItems(steps: Step[], running: boolean): TrailItem[] {
 
 /**
  * Third-person description of what the bud did this step, for the trail.
- * The right-pane narration feed surfaces the in-character thoughts; the trail
- * is the observable action timeline.
+ * The trail row is paired with the persona's narration (as a subtitle) so the
+ * "what they did" and "what they thought" sit together in the timeline.
  */
 function trailLabelFor(step: Step): string {
   const a = step.action;
@@ -72,10 +73,14 @@ function trailLabelFor(step: Step): string {
     if (a.outcome === 'completed') return 'Wrapping up';
     return 'Finishing';
   }
-  if (a.instruction && a.instruction.length > 0) {
-    return a.instruction.length > 70 ? a.instruction.slice(0, 69) + '…' : a.instruction;
+  const hasInstruction =
+    a.instruction && a.instruction.length > 0 && a.instruction !== '(no browser action)';
+  if (hasInstruction) {
+    return a.instruction!.length > 70 ? a.instruction!.slice(0, 69) + '…' : a.instruction!;
   }
-  return 'Working';
+  // Pure-thought step (persona only called `react`, no browser tool). The
+  // narration carries the meaning — surface that as the row label.
+  return 'Thinking';
 }
 
 function truncateUrl(url: string): string {
