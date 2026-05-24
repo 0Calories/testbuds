@@ -15,6 +15,7 @@ const PERSONA_TAG: Record<string, string> = {
 export type TrailState = 'done' | 'active' | 'idle';
 export interface TrailItem {
   state: TrailState;
+  /** Third-person description of what the bud is doing this step. */
   label: string;
 }
 
@@ -78,14 +79,16 @@ function DotIdle() {
 }
 
 function TrailStep({ state, label }: TrailItem) {
-  const color =
-    state === 'done' ? 'var(--color-bud-deep)' : state === 'active' ? 'var(--color-ink)' : 'var(--color-ink-4)';
+  const labelColor =
+    state === 'done' ? 'var(--color-ink)' : state === 'active' ? 'var(--color-ink)' : 'var(--color-ink-4)';
   const dot = state === 'done' ? <DotCheck /> : state === 'active' ? <DotActive /> : <DotIdle />;
   return (
     <div style={{ display: 'flex', gap: 10, padding: '6px 0', position: 'relative' }}>
       <div style={{ width: 18, display: 'flex', justifyContent: 'center', paddingTop: 3 }}>{dot}</div>
-      <div style={{ flex: 1 }}>
-        <span style={{ fontSize: 13, color, fontWeight: state === 'active' ? 500 : 400 }}>{label}</span>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ fontSize: 13, color: labelColor, fontWeight: state === 'active' ? 500 : 400, lineHeight: 1.4 }}>
+          {label}
+        </div>
       </div>
     </div>
   );

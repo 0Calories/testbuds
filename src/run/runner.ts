@@ -281,7 +281,104 @@ function mapToolCallToAction(toolName: string, input: unknown): Action {
   if (toolName === 'goto' && typeof args.url === 'string') {
     return { kind: 'navigate', url: args.url };
   }
-  // For everything else (act/click/type/scroll/fillForm/etc.), summarize as one `act`.
-  const summary = JSON.stringify(args).slice(0, 200);
-  return { kind: 'act', instruction: `${toolName}(${summary})` };
+  return { kind: 'act', instruction: describeBrowserTool(toolName, args) };
+}
+
+/**
+ * Turn a Stagehand browser tool call into a third-person, human-readable
+ * description of what the bud is doing this step — used by the run sidebar
+ * trail. Keep these as short verb phrases ("Clicking the pricing button",
+ * "Reading the page") rather than raw tool/argument dumps.
+ */
+function describeBrowserTool(toolName: string, args: Record<string, unknown>): string {
+  const name = toolName.toLowerCase();
+  // The natural-language `act` tool — surface the persona's instruction directly.
+  const nlInstruction =
+    (typeof args.action === 'string' && args.action) ||
+    (typeof args.instruction === 'string' && args.instruction) ||
+    (typeof args.description === 'string' && args.description) ||
+    '';
+  if (name === 'act' && nlInstruction) return toGerundPhrase(nlInstruction);
+
+  switch (name) {
+    case 'click':
+      return 'Clicking';
+    case 'type': {
+      const text = typeof args.text === 'string' ? args.text : undefined;
+      return text ? `Typing “${ellipsize(text, 40)}”` : 'Typing';
+    }
+    case 'scroll':
+      return 'Scrolling';
+    case 'fill':
+    case 'fillform':
+      return 'Filling out a form';
+    case 'screenshot':
+      return 'Looking at the page';
+    case 'ariatree':
+    case 'extract':
+    case 'observe':
+      return 'Reading the page';
+    case 'wait':
+      return 'Waiting';
+    case 'hover':
+      return 'Hovering';
+    case 'press':
+    case 'keypress':
+      return 'Pressing a key';
+    case 'select':
+      return 'Selecting an option';
+    case 'back':
+      return 'Going back';
+    case 'reload':
+    case 'refresh':
+      return 'Reloading the page';
+    default:
+      return nlInstruction ? toGerundPhrase(nlInstruction) : `Running ${toolName}`;
+  }
+}
+
+function ellipsize(s: string, n: number): string {
+  return s.length > n ? s.slice(0, n - 1) + '…' : s;
+}
+
+/** Convert an imperative phrase ("click the X") into a gerund phrase ("Clicking the X"). */
+function toGerundPhrase(imperative: string): string {
+  const trimmed = imperative.trim();
+  if (!trimmed) return imperative;
+  const space = trimmed.search(/\s/);
+  const first = space === -1 ? trimmed : trimmed.slice(0, space);
+  const rest = space === -1 ? '' : trimmed.slice(space);
+  return capitalize(toGerund(first)) + rest;
+}
+
+const GERUND_OVERRIDES: Record<string, string> = {
+  go: 'going',
+  do: 'doing',
+  see: 'seeing',
+  read: 'reading',
+  put: 'putting',
+  get: 'getting',
+  set: 'setting',
+  run: 'running',
+  hit: 'hitting',
+  pay: 'paying',
+  begin: 'beginning',
+};
+
+function toGerund(verb: string): string {
+  const lower = verb.toLowerCase();
+  if (GERUND_OVERRIDES[lower]) return GERUND_OVERRIDES[lower];
+  if (lower.endsWith('ie')) return lower.slice(0, -2) + 'ying';
+  if (lower.endsWith('e') && !lower.endsWith('ee') && !lower.endsWith('ye') && !lower.endsWith('oe')) {
+    return lower.slice(0, -1) + 'ing';
+  }
+  // CVC doubling for short verbs: tap -> tapping, drag -> dragging.
+  if (/^[^aeiou]*[aeiou][^aeiouwxy]$/.test(lower) && lower.length >= 3 && lower.length <= 5) {
+    return lower + lower.slice(-1) + 'ing';
+  }
+  return lower + 'ing';
+}
+
+function capitalize(s: string): string {
+  return s.length === 0 ? s : s[0]!.toUpperCase() + s.slice(1);
 }
