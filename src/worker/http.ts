@@ -1,6 +1,12 @@
 import { createServer, type Server, type IncomingMessage, type ServerResponse } from 'node:http';
-import type { Store } from './store';
+import type { Store, RunRecord } from './store';
 import type { Orchestrator } from './orchestrator';
+import { getPersona } from '../persona/library';
+
+/** Attach the full Persona object so the web UI can read `run.persona.{name,costume}`. */
+function hydrateRun(run: RunRecord): RunRecord & { persona: ReturnType<typeof getPersona> } {
+  return { ...run, persona: getPersona(run.personaSlug) };
+}
 
 export interface HttpDeps {
   port: number;
@@ -46,7 +52,7 @@ async function handle(req: IncomingMessage, res: ServerResponse, deps: HttpDeps)
   }
 
   if (method === 'GET' && url === '/runs') {
-    return json(res, 200, { runs: deps.store.listRuns() });
+    return json(res, 200, { runs: deps.store.listRuns().map(hydrateRun) });
   }
 
   const stopMatch = url.match(RUN_ID_STOP);
@@ -62,7 +68,7 @@ async function handle(req: IncomingMessage, res: ServerResponse, deps: HttpDeps)
     const id = runMatch[1]!;
     const run = deps.store.getRun(id);
     if (!run) return json(res, 404, { error: 'Run not found' });
-    return json(res, 200, { run, steps: deps.store.getRunSteps(id) });
+    return json(res, 200, { run: hydrateRun(run), steps: deps.store.getRunSteps(id) });
   }
 
   json(res, 404, { error: 'Not found' });

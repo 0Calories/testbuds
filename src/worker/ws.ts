@@ -2,6 +2,7 @@ import { WebSocketServer, type WebSocket } from 'ws';
 import type { Server } from 'node:http';
 import type { Orchestrator } from './orchestrator';
 import type { Store, RunRecord } from './store';
+import { getPersona } from '../persona/library';
 
 export interface AttachWsDeps {
   orchestrator: Orchestrator;
@@ -86,7 +87,7 @@ function handleEvents(ws: WebSocket, runId: string, { orchestrator, store }: Att
 
 function snapshotFor(run: RunRecord, store: Store) {
   return {
-    run,
+    run: { ...run, persona: getPersona(run.personaSlug) },
     steps: store.getRunSteps(run.id),
   };
 }
