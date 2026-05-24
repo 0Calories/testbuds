@@ -30,12 +30,34 @@ export const TB = {
 } as const;
 
 // ── Body parts (palette is locked to "sage") ─────────────────────────────
-function TBFeet() {
+// Idle float: the bud bobs ~6 SVG units; the shadow shrinks and lightens in
+// counterphase so it reads as the bud lifting off the ground.
+const FLOAT_DUR = '3.2s';
+const FLOAT_KEYTIMES = '0;0.5;1';
+const FLOAT_KEYSPLINES = '0.42 0 0.58 1;0.42 0 0.58 1';
+
+function TBShadow() {
   return (
-    <g>
-      <ellipse cx="82" cy="202" rx="11" ry="5" fill={TB.bodyDeep} />
-      <ellipse cx="118" cy="202" rx="11" ry="5" fill={TB.bodyDeep} />
-    </g>
+    <ellipse cx="100" cy="210" rx="56" ry="5" fill="rgba(0,0,0,0.10)">
+      <animate
+        attributeName="rx"
+        values="56;48;56"
+        keyTimes={FLOAT_KEYTIMES}
+        dur={FLOAT_DUR}
+        repeatCount="indefinite"
+        calcMode="spline"
+        keySplines={FLOAT_KEYSPLINES}
+      />
+      <animate
+        attributeName="opacity"
+        values="1;0.55;1"
+        keyTimes={FLOAT_KEYTIMES}
+        dur={FLOAT_DUR}
+        repeatCount="indefinite"
+        calcMode="spline"
+        keySplines={FLOAT_KEYSPLINES}
+      />
+    </ellipse>
   );
 }
 
@@ -73,7 +95,6 @@ function TBBody() {
   const clipId = 'tb-body-clip';
   return (
     <g>
-      <ellipse cx="100" cy="210" rx="56" ry="5" fill="rgba(0,0,0,0.10)" />
       <defs>
         <clipPath id={clipId}>
           <ellipse cx="100" cy="132" rx="64" ry="68" />
@@ -588,8 +609,12 @@ export interface TestbudProps {
 /**
  * The Testbud mascot. One species, eight costumes, seven expressions.
  *
- * Body, sprout, feet, and arms never change with expression — the expression is
+ * Body, sprout, and arms never change with expression — the expression is
  * carried entirely by eyes + brows + mouth + optional extras (sweat / anger / `?`).
+ *
+ * The bud has no feet: it levitates with a continuous idle bob, and the
+ * ground shadow shrinks/lightens in counterphase. The animation is purely
+ * SVG-relative so it stays seamless at every render size.
  */
 export function Testbud({
   expression = 'neutral',
@@ -609,12 +634,24 @@ export function Testbud({
       aria-label={title ?? `Testbud, ${expression}${costume ? `, ${costume}` : ''}`}
     >
       {title && <title>{title}</title>}
-      <TBFeet />
-      <TBArms pose={c ? c.arms : 'rest'} />
-      <TBBody />
-      {!(c && c.hidesSprout) && <TBSprout />}
-      <Face expression={expression} />
-      {c && c.draw()}
+      <TBShadow />
+      <g>
+        <animateTransform
+          attributeName="transform"
+          type="translate"
+          values="0 0;0 -6;0 0"
+          keyTimes={FLOAT_KEYTIMES}
+          dur={FLOAT_DUR}
+          repeatCount="indefinite"
+          calcMode="spline"
+          keySplines={FLOAT_KEYSPLINES}
+        />
+        <TBArms pose={c ? c.arms : 'rest'} />
+        <TBBody />
+        {!(c && c.hidesSprout) && <TBSprout />}
+        <Face expression={expression} />
+        {c && c.draw()}
+      </g>
     </svg>
   );
 }
