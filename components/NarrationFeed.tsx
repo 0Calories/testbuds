@@ -114,6 +114,16 @@ const BUD_HORIZONTAL_INSET = 22;
 // left of that geometric center — that's where the tail dots should land.
 const BUD_HEAD_CENTER_OFFSET = 6;
 
+// Three-dot tail descending from the bubble toward the sprout. Each dot's
+// RIGHT edge sits `leftOffset` px to the LEFT of the sprout, and its top edge
+// sits `bottomOffset` px above the bud's top edge (so the smallest dot
+// lands right on the sprout).
+const TAIL_DOTS = [
+  { size: 13, leftOffset: 38, bottomOffset: -6 },
+  { size: 8, leftOffset: 16, bottomOffset: -24 },
+  { size: 5, leftOffset: 0, bottomOffset: -42 },
+];
+
 function CurrentBud({ costume, expression, thought }: CurrentBudProps) {
   const hasThought = thought && thought.length > 0;
   return (
@@ -156,32 +166,22 @@ function CurrentBud({ costume, expression, thought }: CurrentBudProps) {
           </span>
         )}
       </div>
-      <span
-        aria-hidden
-        style={{
-          position: 'absolute',
-          left: `calc(50% - ${BUD_HEAD_CENTER_OFFSET + 38 + 13 / 2}px)`,
-          bottom: BUD_SIZE - 6,
-          width: 13,
-          height: 13,
-          background: 'var(--color-paper)',
-          border: '1.5px solid var(--color-line)',
-          borderRadius: '50%',
-        }}
-      />
-      <span
-        aria-hidden
-        style={{
-          position: 'absolute',
-          left: `calc(50% - ${BUD_HEAD_CENTER_OFFSET + 16 + 8 / 2}px)`,
-          bottom: BUD_SIZE - 24,
-          width: 8,
-          height: 8,
-          background: 'var(--color-paper)',
-          border: '1.5px solid var(--color-line)',
-          borderRadius: '50%',
-        }}
-      />
+      {TAIL_DOTS.map(({ size, leftOffset, bottomOffset }, i) => (
+        <span
+          key={i}
+          aria-hidden
+          style={{
+            position: 'absolute',
+            left: `calc(50% - ${BUD_HEAD_CENTER_OFFSET + leftOffset + size}px)`,
+            bottom: BUD_SIZE + bottomOffset,
+            width: size,
+            height: size,
+            background: 'var(--color-paper)',
+            border: '1.5px solid var(--color-line)',
+            borderRadius: '50%',
+          }}
+        />
+      ))}
       <div style={{ marginTop: 26 }}>
         <Testbud expression={expression} costume={costume} size={BUD_SIZE} animated />
       </div>
