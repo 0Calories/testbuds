@@ -1,5 +1,22 @@
 import { Stagehand } from '@browserbasehq/stagehand';
-import { readFileSync } from 'node:fs';
+import { readFileSync, mkdtempSync, existsSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { spawn, type ChildProcess } from 'node:child_process';
+import { chromium } from 'playwright';
+
+// Stagehand v3 looks at CHROME_PATH to locate the Chromium binary. Playwright's
+// own bundled Chromium discovery (via PLAYWRIGHT_BROWSERS_PATH) gives us the
+// right answer in any environment — local dev, the Playwright Docker image,
+// or a manual `playwright install` cache. Set it once at module load.
+if (!process.env.CHROME_PATH) {
+  try {
+    process.env.CHROME_PATH = chromium.executablePath();
+  } catch {
+    // Playwright couldn't resolve a path — leave CHROME_PATH unset and let
+    // Stagehand surface its own error.
+  }
+}
 
 const RRWEB_JS = readFileSync('src/worker/vendor/rrweb.min.js', 'utf8');
 
@@ -16,11 +33,105 @@ const RRWEB_BOOT = `
     recordCrossOriginIframes: true,
     collectFonts: true,
     inlineStylesheet: true,
+    // Belt-and-suspenders: rrweb already masks <input type="password"> by
+    // default, but we set this explicitly so the privacy guarantee lives in
+    // our code rather than relying on the upstream default.
+    maskInputOptions: { password: true },
     sampling: { mousemove: false, scroll: 100, input: 'last' },
   });
 `;
 
 const RRWEB_SENTINEL = '__RRWEB__';
+
+interface ChromiumHandle {
+  cdpUrl: string;
+  kill: () => void;
+}
+
+/**
+ * Spawn Chromium as a child process with a fixed CDP debugging port and
+ * resolve once `/json/version` on that port answers (Chromium is up and CDP
+ * is reachable). The fixed-port + HTTP-probe approach is the most robust
+ * across headless modes — file-based discovery (DevToolsActivePort) was
+ * unreliable when spawned from Node in our Fly container.
+ */
+function spawnChromiumForCDP(): Promise<ChromiumHandle> {
+  const chromePath = process.env.CHROME_PATH;
+  if (!chromePath) throw new Error('CHROME_PATH is not set');
+
+  const userDataDir = mkdtempSync(join(tmpdir(), 'testbuds-chrome-'));
+  // Random port in an unprivileged range to avoid collisions if multiple
+  // runs happen to overlap (worker scale > 1 isn't supported today, but cheap).
+  const port = 9333 + Math.floor(Math.random() * 600);
+
+  const proc: ChildProcess = spawn(
+    chromePath,
+    [
+      '--headless=new',
+      '--no-sandbox',
+      '--disable-setuid-sandbox',
+      '--disable-dev-shm-usage',
+      '--disable-gpu',
+      `--remote-debugging-port=${port}`,
+      `--user-data-dir=${userDataDir}`,
+    ],
+    { stdio: ['ignore', 'ignore', 'pipe'] },
+  );
+
+  // Capture stderr (last 1KB) only as a diagnostic for the timeout error path.
+  // Don't echo it line-by-line — chrome is extremely chatty.
+  let stderr = '';
+  proc.stderr?.on('data', (chunk: Buffer) => {
+    stderr = (stderr + chunk.toString()).slice(-2000);
+  });
+
+  return new Promise<ChromiumHandle>((resolve, reject) => {
+    let resolved = false;
+    let earlyExitCode: number | null = null;
+
+    proc.on('exit', (code) => { earlyExitCode = code ?? -1; });
+    proc.on('error', (err) => {
+      if (resolved) return;
+      resolved = true;
+      reject(err);
+    });
+
+    const start = Date.now();
+    const poll = async () => {
+      if (resolved) return;
+      if (earlyExitCode !== null) {
+        resolved = true;
+        reject(new Error(`Chromium exited prematurely (code ${earlyExitCode}). stderr tail:\n${stderr.slice(-1000)}`));
+        return;
+      }
+      try {
+        const res = await fetch(`http://127.0.0.1:${port}/json/version`, {
+          signal: AbortSignal.timeout(500),
+        });
+        if (res.ok) {
+          const data = (await res.json()) as { webSocketDebuggerUrl?: string };
+          if (data.webSocketDebuggerUrl) {
+            resolved = true;
+            resolve({
+              cdpUrl: data.webSocketDebuggerUrl,
+              kill: () => { try { proc.kill('SIGKILL'); } catch { /* swallow */ } },
+            });
+            return;
+          }
+        }
+      } catch { /* CDP not ready yet — try again */ }
+
+      if (Date.now() - start > 45000) {
+        resolved = true;
+        try { proc.kill('SIGKILL'); } catch { /* swallow */ }
+        reject(new Error(`Chromium CDP at :${port} not reachable within 45s. stderr tail:\n${stderr.slice(-1000)}`));
+        return;
+      }
+      setTimeout(poll, 200);
+    };
+    poll();
+  });
+}
 
 // V3Context / V3Page are not part of Stagehand's public type exports; derive
 // them from the runtime getters so we don't have to reach into internal paths.
@@ -48,6 +159,13 @@ export async function launchStagehandHost(input: StagehandHostInput): Promise<St
     ? { width: 390, height: 844 }
     : { width: 1280, height: 800 };
 
+  // Spawn Chromium ourselves so we control every flag. Stagehand v3's internal
+  // LOCAL launcher kept crashing in our Fly container with ECONNREFUSED on its
+  // CDP port even with chromiumSandbox=false + args set — the cdpUrl path
+  // (documented in the Phase 0 spike) sidesteps Stagehand's launcher entirely.
+  const chrome = await spawnChromiumForCDP();
+  const cdpUrl = chrome.cdpUrl;
+
   const stagehand = new Stagehand({
     env: 'LOCAL',
     experimental: true,
@@ -57,7 +175,8 @@ export async function launchStagehandHost(input: StagehandHostInput): Promise<St
       apiKey: process.env.ANTHROPIC_API_KEY,
     },
     localBrowserLaunchOptions: {
-      headless: true,
+      // Attach to the already-launched Chromium via CDP instead of spawning one.
+      cdpUrl,
       viewport,
       ...(input.userDataDir
         ? { userDataDir: input.userDataDir, preserveUserDataDir: true }
@@ -96,6 +215,7 @@ export async function launchStagehandHost(input: StagehandHostInput): Promise<St
     page,
     close: async () => {
       try { await stagehand.close(); } catch { /* swallow */ }
+      chrome.kill();
     },
   };
 }
