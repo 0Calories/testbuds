@@ -55,7 +55,7 @@ interface ChromiumHandle {
  * across headless modes — file-based discovery (DevToolsActivePort) was
  * unreliable when spawned from Node in our Fly container.
  */
-function spawnChromiumForCDP(): Promise<ChromiumHandle> {
+function spawnChromiumForCDP(viewport: { width: number; height: number }): Promise<ChromiumHandle> {
   const chromePath = process.env.CHROME_PATH;
   if (!chromePath) throw new Error('CHROME_PATH is not set');
 
@@ -72,6 +72,11 @@ function spawnChromiumForCDP(): Promise<ChromiumHandle> {
       '--disable-setuid-sandbox',
       '--disable-dev-shm-usage',
       '--disable-gpu',
+      // Chromium's --headless=new default window is ~800×600, which rrweb
+      // captures into the Meta event before Stagehand's per-context viewport
+      // setting takes effect. Pin the OS window to the requested viewport so
+      // the recording dimensions match what the live view expects.
+      `--window-size=${viewport.width},${viewport.height}`,
       `--remote-debugging-port=${port}`,
       `--user-data-dir=${userDataDir}`,
     ],
@@ -163,7 +168,7 @@ export async function launchStagehandHost(input: StagehandHostInput): Promise<St
   // LOCAL launcher kept crashing in our Fly container with ECONNREFUSED on its
   // CDP port even with chromiumSandbox=false + args set — the cdpUrl path
   // (documented in the Phase 0 spike) sidesteps Stagehand's launcher entirely.
-  const chrome = await spawnChromiumForCDP();
+  const chrome = await spawnChromiumForCDP(viewport);
   const cdpUrl = chrome.cdpUrl;
 
   const stagehand = new Stagehand({

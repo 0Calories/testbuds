@@ -90,39 +90,36 @@ export function LiveReplayer({ runId, wsBase }: LiveReplayerProps) {
       });
     };
 
-    // Apply scaling so the recorded viewport fits the host container.
-    // Called from three sources: ResizeObserver (window/host resize), MutationObserver
-    // (rrweb appends/replaces its iframe), and an iframe-level ResizeObserver once
-    // the iframe exists (the iframe grows as the snapshot is hydrated).
-    let scaledIframe: HTMLIFrameElement | null = null;
-    const iframeResizer = new ResizeObserver(() => applyScale());
+    // Recorded viewport dimensions, supplied by rrweb's 'resize' event whenever
+    // it processes a Meta event or a viewport-resize incremental snapshot.
+    // These are authoritative — far more reliable than reading iframe.offsetWidth,
+    // which transitions through display:none → sized as rrweb hydrates and was
+    // the source of the live-view zoom-in bug.
+    let recordedWidth = 0;
+    let recordedHeight = 0;
 
     const applyScale = () => {
+      if (!recordedWidth || !recordedHeight) return;
       const iframe = host.querySelector('iframe');
       if (!iframe) return;
-      if (iframe !== scaledIframe) {
-        if (scaledIframe) iframeResizer.unobserve(scaledIframe);
-        iframeResizer.observe(iframe);
-        scaledIframe = iframe;
-      }
-      const recordedWidth = iframe.offsetWidth;
-      if (recordedWidth <= 0) return; // iframe not yet hydrated; skip until it has size
       const scale = host.clientWidth / recordedWidth;
       iframe.style.transform = `scale(${scale})`;
       iframe.style.transformOrigin = 'top left';
-      // Only set host height when the iframe has content — otherwise we collapse to 0.
-      if (iframe.offsetHeight > 0) {
-        host.style.height = `${iframe.offsetHeight * scale}px`;
-      }
+      host.style.height = `${recordedHeight * scale}px`;
       decorateForeignFrames();
     };
 
-    const hostResizer = new ResizeObserver(() => applyScale());
-    hostResizer.observe(host);
+    // Fires after rrweb's own handleResize has shown the iframe and set its
+    // width/height attributes, so by the time we apply scale the iframe is sized.
+    replayer.on('resize', (payload) => {
+      const { width, height } = payload as { width: number; height: number };
+      recordedWidth = width;
+      recordedHeight = height;
+      applyScale();
+    });
 
-    // rrweb appends its iframe lazily (after the first event arrives) — watch for it.
-    const mutationObserver = new MutationObserver(() => applyScale());
-    mutationObserver.observe(host, { childList: true, subtree: false });
+    const hostResizer = new ResizeObserver(applyScale);
+    hostResizer.observe(host);
 
     const decorator = setInterval(decorateForeignFrames, 1500);
 
@@ -130,8 +127,6 @@ export function LiveReplayer({ runId, wsBase }: LiveReplayerProps) {
       signal.aborted = true;
       conn.close();
       hostResizer.disconnect();
-      iframeResizer.disconnect();
-      mutationObserver.disconnect();
       clearInterval(decorator);
       replayer.destroy();
     };
