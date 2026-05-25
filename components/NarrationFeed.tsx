@@ -109,19 +109,23 @@ interface CurrentBudProps {
 
 const BUD_SIZE = 168;
 const BUD_HORIZONTAL_INSET = 22;
+// Push the bud-thought section up off the bottom of the viewport so it
+// doesn't sit flush against the page edge. The transcript above (flex:1)
+// absorbs the lost vertical space.
+const BUD_BOTTOM_INSET = 40;
 // Bud-mascot SVG (viewBox 200×220) renders meet-fitted inside a square box, so
 // its body center sits BUD_SIZE/2 from each side. The sprout/head sits ~6px
 // left of that geometric center — that's where the tail dots should land.
 const BUD_HEAD_CENTER_OFFSET = 6;
 
 // Three-dot tail descending from the bubble toward the sprout. Each dot's
-// RIGHT edge sits `leftOffset` px to the LEFT of the sprout, and its top edge
-// sits `bottomOffset` px above the bud's top edge (so the smallest dot
-// lands right on the sprout).
+// RIGHT edge sits `leftOffset` px to the LEFT of the sprout, and its bottom
+// edge sits `bottomOffset` px below the bud's top edge (negative = down into
+// the head).
 const TAIL_DOTS = [
-  { size: 13, leftOffset: 38, bottomOffset: -6 },
-  { size: 8, leftOffset: 16, bottomOffset: -24 },
-  { size: 5, leftOffset: 0, bottomOffset: -42 },
+  { size: 13, leftOffset: 38, bottomOffset: -20 },
+  { size: 8, leftOffset: 16, bottomOffset: -38 },
+  { size: 5, leftOffset: 0, bottomOffset: -56 },
 ];
 
 function CurrentBud({ costume, expression, thought }: CurrentBudProps) {
@@ -131,7 +135,7 @@ function CurrentBud({ costume, expression, thought }: CurrentBudProps) {
       style={{
         position: 'relative',
         flexShrink: 0,
-        padding: `22px ${BUD_HORIZONTAL_INSET}px 14px`,
+        padding: `22px ${BUD_HORIZONTAL_INSET}px ${BUD_BOTTOM_INSET}px`,
         borderTop: '1px solid var(--color-line-soft)',
         background: 'var(--color-paper-deep)',
         display: 'flex',
@@ -173,7 +177,7 @@ function CurrentBud({ costume, expression, thought }: CurrentBudProps) {
           style={{
             position: 'absolute',
             left: `calc(50% - ${BUD_HEAD_CENTER_OFFSET + leftOffset + size}px)`,
-            bottom: BUD_SIZE + bottomOffset,
+            bottom: BUD_BOTTOM_INSET + BUD_SIZE + bottomOffset,
             width: size,
             height: size,
             background: 'var(--color-paper)',
