@@ -1,0 +1,33 @@
+app = "testbuds"
+primary_region = "iad"
+
+[build]
+  [build.args]
+    NEXT_PUBLIC_WORKER_WS = "wss://testbuds.fly.dev/_w"
+
+[env]
+  NODE_ENV = "production"
+  WORKER_PORT = "5174"
+  WORKER_HTTP_URL = "http://localhost:5174"
+  DATA_DIR = "/app/data"
+  # Mirrors the build arg so runtime code sees the same value.
+  NEXT_PUBLIC_WORKER_WS = "wss://testbuds.fly.dev/_w"
+
+# Persistent volume for SQLite + per-run rrweb ndjson archives.
+# Create with: fly volumes create testbuds_data --size 1 --region iad
+[[mounts]]
+  source = "testbuds_data"
+  destination = "/app/data"
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  # Keep at least one machine awake during judging so cold starts don't bite.
+  # Flip to 0 to save credits once judging closes.
+  auto_stop_machines = "stop"
+  auto_start_machines = true
+  min_machines_running = 1
+
+[[vm]]
+  size = "shared-cpu-2x"
+  memory = "2gb"
