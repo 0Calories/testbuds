@@ -17,6 +17,13 @@ RUN corepack enable && corepack prepare pnpm@10.33.0 --activate
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 RUN pnpm install --frozen-lockfile
 
+# Ensure the Chromium matching our pinned `playwright` version is on disk. The
+# base image preinstalls *a* Chromium but it may not match our package.json,
+# and Stagehand rejects mismatches with "CHROME_PATH must be no older than
+# Chrome stable". --with-deps would pull system libs; the base image already
+# has them, so plain `install` is enough.
+RUN pnpm exec playwright install chromium
+
 # Bring in the rest of the source
 COPY . .
 

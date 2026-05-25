@@ -1,5 +1,19 @@
 import { Stagehand } from '@browserbasehq/stagehand';
 import { readFileSync } from 'node:fs';
+import { chromium } from 'playwright';
+
+// Stagehand v3 looks at CHROME_PATH to locate the Chromium binary. Playwright's
+// own bundled Chromium discovery (via PLAYWRIGHT_BROWSERS_PATH) gives us the
+// right answer in any environment — local dev, the Playwright Docker image,
+// or a manual `playwright install` cache. Set it once at module load.
+if (!process.env.CHROME_PATH) {
+  try {
+    process.env.CHROME_PATH = chromium.executablePath();
+  } catch {
+    // Playwright couldn't resolve a path — leave CHROME_PATH unset and let
+    // Stagehand surface its own error.
+  }
+}
 
 const RRWEB_JS = readFileSync('src/worker/vendor/rrweb.min.js', 'utf8');
 
