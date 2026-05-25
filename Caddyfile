@@ -1,0 +1,18 @@
+:8080 {
+	# Worker REST + WebSockets under /_w/* — strip the prefix before forwarding.
+	# /_w/runs/<id>/live   → ws://localhost:5174/runs/<id>/live
+	# /_w/runs/<id>/events → ws://localhost:5174/runs/<id>/events
+	handle_path /_w/* {
+		reverse_proxy localhost:5174
+	}
+
+	# Everything else (UI + /api/*) goes to Next.js
+	handle {
+		reverse_proxy localhost:3000
+	}
+
+	log {
+		output stdout
+		format console
+	}
+}
