@@ -1,5 +1,5 @@
 import { Stagehand } from '@browserbasehq/stagehand';
-import { readFileSync, mkdtempSync } from 'node:fs';
+import { readFileSync, mkdtempSync, existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { spawn, type ChildProcess } from 'node:child_process';
@@ -49,14 +49,18 @@ interface ChromiumHandle {
 }
 
 /**
- * Spawn Chromium as a child process and resolve once it announces the
- * DevTools WebSocket URL on stderr. Stagehand connects via this URL.
+ * Spawn Chromium as a child process and resolve once it announces a CDP URL
+ * via the DevToolsActivePort file in its user-data-dir. We do NOT parse
+ * stderr — Chromium's `--headless=new` mode doesn't reliably print the
+ * "DevTools listening on" banner. The file approach is Chrome's canonical
+ * way and works across headless modes.
  */
 function spawnChromiumForCDP(): Promise<ChromiumHandle> {
   const chromePath = process.env.CHROME_PATH;
   if (!chromePath) throw new Error('CHROME_PATH is not set');
 
   const userDataDir = mkdtempSync(join(tmpdir(), 'testbuds-chrome-'));
+  const portFile = join(userDataDir, 'DevToolsActivePort');
 
   const proc: ChildProcess = spawn(
     chromePath,
@@ -68,48 +72,59 @@ function spawnChromiumForCDP(): Promise<ChromiumHandle> {
       '--disable-gpu',
       '--remote-debugging-port=0',
       `--user-data-dir=${userDataDir}`,
-      'about:blank',
     ],
     { stdio: ['ignore', 'ignore', 'pipe'] },
   );
 
+  let stderr = '';
+  proc.stderr?.on('data', (chunk: Buffer) => { stderr += chunk.toString(); });
+
   return new Promise<ChromiumHandle>((resolve, reject) => {
-    let stderr = '';
     let resolved = false;
+    let earlyExitCode: number | null = null;
 
-    const timeout = setTimeout(() => {
-      if (resolved) return;
-      resolved = true;
-      try { proc.kill(); } catch { /* swallow */ }
-      reject(new Error(`Chromium did not announce a DevTools URL within 15s. stderr tail:\n${stderr.slice(-1000)}`));
-    }, 15000);
-
-    proc.stderr?.on('data', (chunk: Buffer) => {
-      stderr += chunk.toString();
-      const match = stderr.match(/DevTools listening on (ws:\/\/\S+)/);
-      if (match && !resolved) {
-        resolved = true;
-        clearTimeout(timeout);
-        resolve({
-          cdpUrl: match[1]!,
-          kill: () => { try { proc.kill(); } catch { /* swallow */ } },
-        });
-      }
+    proc.on('exit', (code) => {
+      earlyExitCode = code ?? -1;
     });
-
     proc.on('error', (err) => {
       if (resolved) return;
       resolved = true;
-      clearTimeout(timeout);
       reject(err);
     });
 
-    proc.on('exit', (code) => {
+    const start = Date.now();
+    const poll = () => {
       if (resolved) return;
-      resolved = true;
-      clearTimeout(timeout);
-      reject(new Error(`Chromium exited prematurely with code ${code}. stderr tail:\n${stderr.slice(-1000)}`));
-    });
+      if (existsSync(portFile)) {
+        try {
+          const content = readFileSync(portFile, 'utf8').trim();
+          const [portStr, browserPath = ''] = content.split('\n');
+          const port = Number.parseInt(portStr!.trim(), 10);
+          if (Number.isFinite(port) && port > 0) {
+            resolved = true;
+            const cdpUrl = `ws://127.0.0.1:${port}${browserPath.startsWith('/') ? browserPath : ''}`;
+            resolve({
+              cdpUrl,
+              kill: () => { try { proc.kill(); } catch { /* swallow */ } },
+            });
+            return;
+          }
+        } catch { /* race — file written partially; retry next tick */ }
+      }
+      if (earlyExitCode !== null) {
+        resolved = true;
+        reject(new Error(`Chromium exited prematurely (code ${earlyExitCode}). stderr tail:\n${stderr.slice(-1000)}`));
+        return;
+      }
+      if (Date.now() - start > 20000) {
+        resolved = true;
+        try { proc.kill(); } catch { /* swallow */ }
+        reject(new Error(`Chromium did not write DevToolsActivePort within 20s. stderr tail:\n${stderr.slice(-1000)}`));
+        return;
+      }
+      setTimeout(poll, 100);
+    };
+    poll();
   });
 }
 
