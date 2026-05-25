@@ -176,6 +176,64 @@ function buildStepRecord(args: {
 function mapToolCallToAction(toolName: string, input: unknown): Action {
   const args = (input ?? {}) as Record<string, unknown>;
   if (toolName === 'goto' && typeof args.url === 'string') return { kind: 'navigate', url: args.url };
-  const summary = JSON.stringify(args).slice(0, 200);
-  return { kind: 'act', instruction: `${toolName}(${summary})` };
+  return { kind: 'act', instruction: humanizeToolCall(toolName, args) };
+}
+
+/**
+ * Turn a Stagehand/CUA tool call into a short, human-readable phrase
+ * for the run trail. Unknown tools fall back to the bare tool name —
+ * never raw JSON, since these strings render in the UI.
+ */
+export function humanizeToolCall(toolName: string, args: Record<string, unknown>): string {
+  const str = (key: string): string | undefined =>
+    typeof args[key] === 'string' ? (args[key] as string) : undefined;
+
+  switch (toolName) {
+    case 'screenshot':
+      return 'Taking a screenshot';
+    case 'scroll': {
+      const direction = str('direction');
+      if (direction === 'up' || direction === 'down' || direction === 'left' || direction === 'right') {
+        return `Scrolling ${direction}`;
+      }
+      return 'Scrolling';
+    }
+    case 'think':
+      return 'Thinking it over';
+    case 'click':
+      return 'Clicking';
+    case 'type':
+    case 'key':
+    case 'fill': {
+      const text = str('text');
+      if (text) {
+        const trimmed = text.length > 30 ? `${text.slice(0, 29)}…` : text;
+        return `Typing "${trimmed}"`;
+      }
+      return 'Typing';
+    }
+    case 'extract': {
+      const instruction = str('instruction');
+      return instruction ? `Reading the page for ${truncatePhrase(instruction, 40)}` : 'Reading the page';
+    }
+    case 'observe':
+      return 'Observing the page';
+    case 'act': {
+      const action = str('action') ?? str('instruction');
+      return action ? truncatePhrase(action, 60) : 'Acting on the page';
+    }
+    case 'mouse_move':
+      return 'Moving the cursor';
+    case 'mouse_drag':
+    case 'drag':
+      return 'Dragging';
+    case 'wait':
+      return 'Waiting';
+    default:
+      return toolName;
+  }
+}
+
+function truncatePhrase(s: string, max: number): string {
+  return s.length > max ? `${s.slice(0, max - 1).trimEnd()}…` : s;
 }
