@@ -90,39 +90,28 @@ export function LiveReplayer({ runId, wsBase }: LiveReplayerProps) {
       });
     };
 
-    // Apply scaling so the recorded viewport fits the host container.
-    // Called from three sources: ResizeObserver (window/host resize), MutationObserver
-    // (rrweb appends/replaces its iframe), and an iframe-level ResizeObserver once
-    // the iframe exists (the iframe grows as the snapshot is hydrated).
-    let scaledIframe: HTMLIFrameElement | null = null;
-    const iframeResizer = new ResizeObserver(() => applyScale());
-
+    // Scale the rrweb iframe (which is rendered at the recorded viewport
+    // size — 1280×800 desktop / 390×844 mobile) to fit our host container.
+    // Triggered by host/window resize AND by rrweb appending its iframe child.
     const applyScale = () => {
       const iframe = host.querySelector('iframe');
       if (!iframe) return;
-      if (iframe !== scaledIframe) {
-        if (scaledIframe) iframeResizer.unobserve(scaledIframe);
-        iframeResizer.observe(iframe);
-        scaledIframe = iframe;
-      }
-      const recordedWidth = iframe.offsetWidth;
-      if (recordedWidth <= 0) return; // iframe not yet hydrated; skip until it has size
+      const recordedWidth = iframe.offsetWidth || 1280;
       const scale = host.clientWidth / recordedWidth;
       iframe.style.transform = `scale(${scale})`;
       iframe.style.transformOrigin = 'top left';
-      // Only set host height when the iframe has content — otherwise we collapse to 0.
-      if (iframe.offsetHeight > 0) {
-        host.style.height = `${iframe.offsetHeight * scale}px`;
-      }
+      host.style.height = `${iframe.offsetHeight * scale}px`;
       decorateForeignFrames();
     };
 
-    const hostResizer = new ResizeObserver(() => applyScale());
+    const hostResizer = new ResizeObserver(applyScale);
     hostResizer.observe(host);
 
-    // rrweb appends its iframe lazily (after the first event arrives) — watch for it.
-    const mutationObserver = new MutationObserver(() => applyScale());
-    mutationObserver.observe(host, { childList: true, subtree: false });
+    // rrweb appends its iframe lazily (after the first event arrives) — watch
+    // for it so we can apply the initial scale without waiting for a window
+    // resize to fire hostResizer.
+    const mutationObserver = new MutationObserver(applyScale);
+    mutationObserver.observe(host, { childList: true, subtree: true });
 
     const decorator = setInterval(decorateForeignFrames, 1500);
 
@@ -130,7 +119,6 @@ export function LiveReplayer({ runId, wsBase }: LiveReplayerProps) {
       signal.aborted = true;
       conn.close();
       hostResizer.disconnect();
-      iframeResizer.disconnect();
       mutationObserver.disconnect();
       clearInterval(decorator);
       replayer.destroy();
