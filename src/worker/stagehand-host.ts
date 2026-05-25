@@ -114,17 +114,17 @@ function spawnChromiumForCDP(): Promise<ChromiumHandle> {
             resolved = true;
             resolve({
               cdpUrl: data.webSocketDebuggerUrl,
-              kill: () => { try { proc.kill(); } catch { /* swallow */ } },
+              kill: () => { try { proc.kill('SIGKILL'); } catch { /* swallow */ } },
             });
             return;
           }
         }
       } catch { /* CDP not ready yet — try again */ }
 
-      if (Date.now() - start > 20000) {
+      if (Date.now() - start > 45000) {
         resolved = true;
-        try { proc.kill(); } catch { /* swallow */ }
-        reject(new Error(`Chromium CDP at :${port} not reachable within 20s. stderr tail:\n${stderr.slice(-1000)}`));
+        try { proc.kill('SIGKILL'); } catch { /* swallow */ }
+        reject(new Error(`Chromium CDP at :${port} not reachable within 45s. stderr tail:\n${stderr.slice(-1000)}`));
         return;
       }
       setTimeout(poll, 200);
