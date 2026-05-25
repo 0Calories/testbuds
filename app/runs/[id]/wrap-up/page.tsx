@@ -899,16 +899,15 @@ function WrapUpFooter({
         borderTop: '1px solid var(--color-line)',
         background: 'var(--color-paper)',
         display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        gap: 16,
+        flexDirection: 'column',
+        gap: 10,
         flexShrink: 0,
       }}
     >
       <div
         style={{
           display: 'flex',
-          alignItems: 'center',
+          alignItems: 'baseline',
           gap: 14,
           minWidth: 0,
           flexWrap: 'wrap',
@@ -925,7 +924,7 @@ function WrapUpFooter({
         >
           Next step
         </span>
-        <span style={{ fontSize: 13.5, color: 'var(--color-ink-2)' }}>
+        <span style={{ fontSize: 13.5, color: 'var(--color-ink-2)', flex: 1, minWidth: 0 }}>
           Run the{' '}
           <span style={{ fontWeight: 600, color: 'var(--color-ink)' }}>
             {nextPersona?.name ?? verdict.nextPersonaSuggestion.slug}
@@ -933,6 +932,18 @@ function WrapUpFooter({
           against the same URL
           {verdict.nextPersonaSuggestion.reason ? ` — ${verdict.nextPersonaSuggestion.reason}` : '.'}
         </span>
+      </div>
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 12,
+          justifyContent: 'flex-end',
+        }}
+      >
+        {queueError && (
+          <span style={{ fontSize: 12, color: 'var(--color-coral)' }}>{queueError}</span>
+        )}
         <button
           type="button"
           onClick={onQueueNext}
@@ -953,17 +964,6 @@ function WrapUpFooter({
         >
           {queuing ? 'Queueing…' : 'Queue run →'}
         </button>
-        {queueError && (
-          <span style={{ fontSize: 12, color: 'var(--color-coral)' }}>{queueError}</span>
-        )}
-      </div>
-      <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
-        <Link
-          href="/"
-          style={{ ...btnPrimary(), textDecoration: 'none', display: 'inline-block' }}
-        >
-          Run again
-        </Link>
       </div>
     </div>
   );
