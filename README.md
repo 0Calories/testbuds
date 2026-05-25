@@ -6,7 +6,7 @@
 
 ### Customer feedback at a fraction of the cost
 
-Synthetic customers that **actually use your product** as a specific persona and tell you what they think, unfiltered.
+Synthetic customers that **actually use your product** and tell you what they think, unfiltered.
 
 <br>
 
