@@ -64,6 +64,7 @@ function spawnChromiumForCDP(): Promise<ChromiumHandle> {
   // runs happen to overlap (worker scale > 1 isn't supported today, but cheap).
   const port = 9333 + Math.floor(Math.random() * 600);
 
+  console.log(`[chrome] spawning at ${chromePath} (port ${port}, data ${userDataDir})`);
   const proc: ChildProcess = spawn(
     chromePath,
     [
@@ -74,12 +75,31 @@ function spawnChromiumForCDP(): Promise<ChromiumHandle> {
       '--disable-gpu',
       `--remote-debugging-port=${port}`,
       `--user-data-dir=${userDataDir}`,
+      '--enable-logging=stderr',
+      '--v=1',
     ],
-    { stdio: ['ignore', 'ignore', 'pipe'] },
+    { stdio: ['ignore', 'pipe', 'pipe'] },
   );
 
   let stderr = '';
-  proc.stderr?.on('data', (chunk: Buffer) => { stderr += chunk.toString(); });
+  let stdout = '';
+  proc.stderr?.on('data', (chunk: Buffer) => {
+    const s = chunk.toString();
+    stderr += s;
+    // Surface non-noise lines (suppress the dbus spam).
+    for (const line of s.split('\n')) {
+      if (line && !line.includes('dbus') && !line.includes('gcm/engine')) {
+        console.log(`[chrome stderr] ${line}`);
+      }
+    }
+  });
+  proc.stdout?.on('data', (chunk: Buffer) => {
+    const s = chunk.toString();
+    stdout += s;
+    for (const line of s.split('\n')) {
+      if (line) console.log(`[chrome stdout] ${line}`);
+    }
+  });
 
   return new Promise<ChromiumHandle>((resolve, reject) => {
     let resolved = false;
