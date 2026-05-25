@@ -31,14 +31,35 @@ Pick a bud. Each bud has their own persona, a personality type that dermines how
 - **A verdict** — `would_buy`, `would_investigate`, or `would_bail`
 - **A ranked friction list** — each item carries the bud's own quoted reaction, the screen it happened on, and a severity
 
-> **Verdict:** would_bail (confidence 0.82)
->
-> 1. **Pricing locked behind "contact sales"** · *high*
->    *"I'm out — I shouldn't have to book a call just to learn the basics."*
-> 2. **Hero doesn't say what the product does** · *high*
->    *"I scrolled the hero twice and still couldn't tell what this is for."*
-> 3. **No reward feedback after a habit check-in** · *medium*
->    *"I logged it, but where's the streak? It just… moved on."*
+### 1. Pick a bud
+
+<p align="center">
+  <img src="docs/screenshots/01-choose-your-bud.png" alt="Persona selection screen with eight bud archetypes" width="900">
+</p>
+
+### 2. Watch them actually use it
+
+The bud drives a real browser on your real product, narrating in character at every step. You see the page, the trail, the transcript, and the bud's face changing as they hit friction.
+
+<p align="center">
+  <img src="docs/screenshots/03-live-exploring.png" alt="Live run view — bud exploring the Hibana flame ladder, transcript building on the right" width="900">
+</p>
+
+### 3. Get a verdict
+
+A `would_buy` / `would_investigate` / `would_bail` call with a confidence score, the moment the bud made up their mind, and a ranked friction list — each item quoted in the persona's own voice.
+
+<p align="center">
+  <img src="docs/screenshots/04-verdict.png" alt="Verdict panel — Would bail, confidence 9/10, with ranked friction items" width="380">
+</p>
+
+### 4. Read the wrap-up
+
+The full report: the one thing to fix first, an ordered punch list ranked by impact ÷ effort, what's already working, and the bud's parting note in their own voice.
+
+<p align="center">
+  <img src="docs/screenshots/05-wrap-up.png" alt="Wrap-up dashboard — headline insight, ordered action list, what's working, and verbatim parting note" width="900">
+</p>
 
 ## The personas
 
