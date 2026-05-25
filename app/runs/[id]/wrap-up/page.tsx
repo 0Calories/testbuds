@@ -328,13 +328,6 @@ function HeroBand({
 // ── Headline insight card ──────────────────────────────────────────────────
 
 function HeadlineCard({ text }: { text: string }) {
-  const [copied, setCopied] = useState(false);
-  const copy = () => {
-    void navigator.clipboard.writeText(`*The one thing* — ${text}`).then(() => {
-      setCopied(true);
-      setTimeout(() => setCopied(false), 1600);
-    });
-  };
   return (
     <div
       style={{
@@ -394,23 +387,6 @@ function HeadlineCard({ text }: { text: string }) {
           {text}
         </div>
       </div>
-      <button
-        type="button"
-        onClick={copy}
-        style={{
-          padding: '7px 12px',
-          background: 'rgba(244,238,226,0.10)',
-          color: 'var(--color-paper)',
-          border: '1px solid rgba(244,238,226,0.18)',
-          borderRadius: 8,
-          fontSize: 12,
-          fontFamily: 'inherit',
-          cursor: 'pointer',
-          flexShrink: 0,
-        }}
-      >
-        {copied ? 'Copied' : 'Copy for Slack'}
-      </button>
     </div>
   );
 }
@@ -982,12 +958,6 @@ function WrapUpFooter({
         )}
       </div>
       <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
-        <button type="button" style={btnGhost()} disabled>
-          Export PDF
-        </button>
-        <button type="button" style={btnGhost()} disabled>
-          Share link
-        </button>
         <Link
           href="/"
           style={{ ...btnPrimary(), textDecoration: 'none', display: 'inline-block' }}
