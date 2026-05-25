@@ -22,14 +22,14 @@ Synthetic customers that **actually use your product** — as a specific persona
 
 ## The problem
 
-Real customer research costs **~$200 a session** and takes **two weeks** to schedule. Testbuds gives you access to AI agents who will roleplay as your target customer persona, and then give you raw unfiltered feedback on what they think.
+Real customer research costs **~$200 a session** and takes **two weeks** to schedule. Testbuds gives you access to AI agents who will roleplay as your target customer persona, and then give you raw unfiltered feedback on what they think. At the end, you instantly get a detailed report with friction points, what hit or miss with the user, and even actionable insights on how you can improve your product.
 
 ## What you get
 
-Pick a persona. Point it at a URL — your landing page, or your live product behind a login. Then **watch live** as the persona actually uses your product: clicking around your real site, narrating their thoughts in their own voice, their expression shifting as they hit friction or delight. When they finish, you get:
+Pick a bud. Each bud has their own persona, a personality type that dermines how they use, interact with, and think about your product. Point it at a URL — your landing page, or your live product behind a login. Then **watch live** as the bud actually uses your product: clicking around your real site, narrating their thoughts in their own voice, their expression shifting as they hit friction or delight. When they finish, you get:
 
 - **A verdict** — `would_buy`, `would_investigate`, or `would_bail`
-- **A ranked friction list** — each item carries the persona's own quoted reaction, the screen it happened on, and a severity
+- **A ranked friction list** — each item carries the bud's own quoted reaction, the screen it happened on, and a severity
 
 > **Verdict:** would_bail (confidence 0.82)
 >
@@ -73,21 +73,6 @@ Each persona has motivations, pain points, decision criteria, and a patience bud
 
 The persona's identity, motivations, and decision criteria are compiled into the AI agent's instructions. The agent then drives a real browser on your real product — seeing the page through vision and the accessibility tree — and narrates in character at each step. A final pass over the transcript synthesizes the verdict and the quoted friction list.
 
-## Run it
-
-```bash
-pnpm install   # set ANTHROPIC_API_KEY, BROWSERBASE_API_KEY, BROWSERBASE_PROJECT_ID in .env
-pnpm dev       # web UI at http://localhost:3000
-```
-
-Or from the CLI:
-
-```bash
-pnpm run testbuds run \
-  --persona skeptical-bargain-hunter \
-  --url https://your-product.com \
-  --goal "Decide whether to sign up."
-```
 
 ---
 
