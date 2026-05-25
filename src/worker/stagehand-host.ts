@@ -77,6 +77,12 @@ export async function launchStagehandHost(input: StagehandHostInput): Promise<St
     localBrowserLaunchOptions: {
       headless: true,
       viewport,
+      // Required in Docker/Fly: the Linux user-namespace sandbox isn't
+      // available, and /dev/shm is typically too small in containers.
+      // Without these flags Chromium launches then immediately crashes,
+      // surfacing as ECONNREFUSED on the CDP port.
+      chromiumSandbox: false,
+      args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage'],
       ...(input.userDataDir
         ? { userDataDir: input.userDataDir, preserveUserDataDir: true }
         : {}),
