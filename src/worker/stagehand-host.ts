@@ -1,5 +1,8 @@
 import { Stagehand } from '@browserbasehq/stagehand';
-import { readFileSync } from 'node:fs';
+import { readFileSync, mkdtempSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { spawn, type ChildProcess } from 'node:child_process';
 import { chromium } from 'playwright';
 
 // Stagehand v3 looks at CHROME_PATH to locate the Chromium binary. Playwright's
@@ -40,6 +43,76 @@ const RRWEB_BOOT = `
 
 const RRWEB_SENTINEL = '__RRWEB__';
 
+interface ChromiumHandle {
+  cdpUrl: string;
+  kill: () => void;
+}
+
+/**
+ * Spawn Chromium as a child process and resolve once it announces the
+ * DevTools WebSocket URL on stderr. Stagehand connects via this URL.
+ */
+function spawnChromiumForCDP(): Promise<ChromiumHandle> {
+  const chromePath = process.env.CHROME_PATH;
+  if (!chromePath) throw new Error('CHROME_PATH is not set');
+
+  const userDataDir = mkdtempSync(join(tmpdir(), 'testbuds-chrome-'));
+
+  const proc: ChildProcess = spawn(
+    chromePath,
+    [
+      '--headless=new',
+      '--no-sandbox',
+      '--disable-setuid-sandbox',
+      '--disable-dev-shm-usage',
+      '--disable-gpu',
+      '--remote-debugging-port=0',
+      `--user-data-dir=${userDataDir}`,
+      'about:blank',
+    ],
+    { stdio: ['ignore', 'ignore', 'pipe'] },
+  );
+
+  return new Promise<ChromiumHandle>((resolve, reject) => {
+    let stderr = '';
+    let resolved = false;
+
+    const timeout = setTimeout(() => {
+      if (resolved) return;
+      resolved = true;
+      try { proc.kill(); } catch { /* swallow */ }
+      reject(new Error(`Chromium did not announce a DevTools URL within 15s. stderr tail:\n${stderr.slice(-1000)}`));
+    }, 15000);
+
+    proc.stderr?.on('data', (chunk: Buffer) => {
+      stderr += chunk.toString();
+      const match = stderr.match(/DevTools listening on (ws:\/\/\S+)/);
+      if (match && !resolved) {
+        resolved = true;
+        clearTimeout(timeout);
+        resolve({
+          cdpUrl: match[1]!,
+          kill: () => { try { proc.kill(); } catch { /* swallow */ } },
+        });
+      }
+    });
+
+    proc.on('error', (err) => {
+      if (resolved) return;
+      resolved = true;
+      clearTimeout(timeout);
+      reject(err);
+    });
+
+    proc.on('exit', (code) => {
+      if (resolved) return;
+      resolved = true;
+      clearTimeout(timeout);
+      reject(new Error(`Chromium exited prematurely with code ${code}. stderr tail:\n${stderr.slice(-1000)}`));
+    });
+  });
+}
+
 // V3Context / V3Page are not part of Stagehand's public type exports; derive
 // them from the runtime getters so we don't have to reach into internal paths.
 // (The Phase 0 spike confirms the surface we use: addInitScript / activePage /
@@ -66,6 +139,13 @@ export async function launchStagehandHost(input: StagehandHostInput): Promise<St
     ? { width: 390, height: 844 }
     : { width: 1280, height: 800 };
 
+  // Spawn Chromium ourselves so we control every flag. Stagehand v3's internal
+  // LOCAL launcher kept crashing in our Fly container with ECONNREFUSED on its
+  // CDP port even with chromiumSandbox=false + args set — the cdpUrl path
+  // (documented in the Phase 0 spike) sidesteps Stagehand's launcher entirely.
+  const chrome = await spawnChromiumForCDP();
+  const cdpUrl = chrome.cdpUrl;
+
   const stagehand = new Stagehand({
     env: 'LOCAL',
     experimental: true,
@@ -75,14 +155,9 @@ export async function launchStagehandHost(input: StagehandHostInput): Promise<St
       apiKey: process.env.ANTHROPIC_API_KEY,
     },
     localBrowserLaunchOptions: {
-      headless: true,
+      // Attach to the already-launched Chromium via CDP instead of spawning one.
+      cdpUrl,
       viewport,
-      // Required in Docker/Fly: the Linux user-namespace sandbox isn't
-      // available, and /dev/shm is typically too small in containers.
-      // Without these flags Chromium launches then immediately crashes,
-      // surfacing as ECONNREFUSED on the CDP port.
-      chromiumSandbox: false,
-      args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage'],
       ...(input.userDataDir
         ? { userDataDir: input.userDataDir, preserveUserDataDir: true }
         : {}),
@@ -120,6 +195,7 @@ export async function launchStagehandHost(input: StagehandHostInput): Promise<St
     page,
     close: async () => {
       try { await stagehand.close(); } catch { /* swallow */ }
+      chrome.kill();
     },
   };
 }
