@@ -26,7 +26,7 @@ Real customer research costs **~$200 a session** and takes **two weeks** to sche
 
 ## What you get
 
-Pick a persona. Point it at a URL — your landing page, or your live product behind a login. Eight minutes later, you get:
+Pick a persona. Point it at a URL — your landing page, or your live product behind a login. Then **watch live** as the persona actually uses your product: clicking around your real site, narrating their thoughts in their own voice, their expression shifting as they hit friction or delight. When they finish, you get:
 
 - **A verdict** — `would_buy`, `would_investigate`, or `would_bail`
 - **A ranked friction list** — each item carries the persona's own quoted reaction, the screen it happened on, and a severity
@@ -65,7 +65,7 @@ Each persona has motivations, pain points, decision criteria, and a patience bud
 |  | Real moderated session | Testbuds |
 |---|---|---|
 | Cost per customer | ~$200 | **~$1.40** |
-| Time to results | 1–2 weeks | **8 minutes** |
+| Time to results | 1–2 weeks | **Live, in minutes** |
 | Personas covered | 1 panel, by demographic | **8 archetypes, on demand** |
 | Behind a login | Sometimes | **Any URL, free or paid** |
 
