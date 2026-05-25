@@ -139,6 +139,19 @@ export class Store {
     `).run(error, Date.now(), id);
   }
 
+  /**
+   * Mark any runs that were 'starting' or 'running' as 'failed' — call once on
+   * worker startup. Their Chromium + agent loop died with the previous worker
+   * process; without this they'd appear stuck mid-run forever in the UI.
+   */
+  failInterruptedRuns(message: string): number {
+    const result = this.db.prepare(`
+      UPDATE runs SET status = 'failed', error = ?, completed_at = ?
+      WHERE status IN ('starting', 'running')
+    `).run(message, Date.now());
+    return result.changes;
+  }
+
   appendStep(runId: string, step: Step): void {
     this.db.prepare(`
       INSERT INTO steps (run_id, idx, url, bubble, narration, emotion, intensity,

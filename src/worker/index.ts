@@ -19,6 +19,15 @@ try {
 }
 
 const store = new Store({ dataDir: DATA_DIR });
+
+// Any runs still marked starting/running in the DB are from a previous worker
+// process that died — their Chromium + agent loop is gone. Mark them failed
+// so the UI doesn't show them stuck mid-run forever.
+const interrupted = store.failInterruptedRuns('worker restarted mid-run');
+if (interrupted > 0) {
+  console.log(`[worker] marked ${interrupted} interrupted run(s) as failed`);
+}
+
 const orchestrator = new Orchestrator({ store, runRunner: makeWorkerRunner() });
 
 const httpServer = buildHttpServer({ port: PORT, store, orchestrator });
