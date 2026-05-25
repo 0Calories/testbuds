@@ -1,5 +1,7 @@
 <div align="center">
 
+<img src="app/icon.svg" width="96" alt="Testbuds">
+
 # Testbuds
 
 ### Real customer feedback. Before the customer.
