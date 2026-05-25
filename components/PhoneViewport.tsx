@@ -1,22 +1,24 @@
 import type { ReactNode } from 'react';
+import { LiveReplayer } from './LiveReplayer';
 
 export interface PhoneViewportProps {
   url: string;
   recording?: boolean;
-  liveViewUrl?: string;
+  /** Run id used to subscribe to the worker's /live WS. */
+  runId?: string;
   children?: ReactNode;
   device?: string;
 }
 
 /**
- * Phone-bezel viewport that wraps a Browserbase Live View iframe at 390×844.
+ * Phone-bezel viewport that wraps a live rrweb replayer at 390×844.
  * Device/network meta sit in the corners; the chrome around it is dark
  * (so the phone reads as the focus).
  */
 export function PhoneViewport({
   url,
   recording = true,
-  liveViewUrl,
+  runId,
   children,
   device = 'iPhone 14 Pro',
 }: PhoneViewportProps) {
@@ -172,14 +174,8 @@ export function PhoneViewport({
           </div>
           {/* viewport (iframe) */}
           <div style={{ position: 'absolute', top: 50, left: 0, right: 0, bottom: 0, overflow: 'hidden', background: '#fff' }}>
-            {liveViewUrl && recording ? (
-              <iframe
-                src={liveViewUrl}
-                style={{ width: '100%', height: '100%', border: 'none', display: 'block' }}
-                title="Live agent browser (mobile)"
-                sandbox="allow-same-origin allow-scripts"
-                allow="clipboard-read; clipboard-write"
-              />
+            {runId && recording ? (
+              <LiveReplayer runId={runId} />
             ) : !recording ? (
               <div
                 style={{

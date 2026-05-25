@@ -9,3 +9,6 @@ next-env.d.ts
 
 # Local-only planning/workflow docs — kept on disk, never pushed.
 docs/superpowers/
+
+# Worker local state
+data/

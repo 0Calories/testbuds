@@ -1,19 +1,20 @@
 import type { ReactNode } from 'react';
+import { LiveReplayer } from './LiveReplayer';
 
 export interface BrowserFrameProps {
   url: string;
   recording?: boolean;
-  /** Optional live-view iframe URL. If absent, renders a placeholder. */
-  liveViewUrl?: string;
-  /** Optional content to render inside the frame instead of the iframe (for tests / fallback). */
+  /** Run id used to subscribe to the worker's /live WS. */
+  runId?: string;
+  /** Optional content to render inside the frame instead of the live view (for tests / fallback). */
   children?: ReactNode;
 }
 
 /**
- * Desktop browser chrome that wraps a Browserbase Live View iframe.
+ * Desktop browser chrome that wraps a live rrweb replayer of the agent's session.
  * Renders traffic-light dots + a fake address bar + an optional REC pill.
  */
-export function BrowserFrame({ url, recording = true, liveViewUrl, children }: BrowserFrameProps) {
+export function BrowserFrame({ url, recording = true, runId, children }: BrowserFrameProps) {
   return (
     <div
       style={{
@@ -110,14 +111,8 @@ export function BrowserFrame({ url, recording = true, liveViewUrl, children }: B
           )}
         </div>
         <div style={{ flex: 1, position: 'relative', overflow: 'hidden', background: '#fff' }}>
-          {liveViewUrl && recording ? (
-            <iframe
-              src={liveViewUrl}
-              style={{ width: '100%', height: '100%', border: 'none', display: 'block' }}
-              title="Live agent browser"
-              sandbox="allow-same-origin allow-scripts"
-              allow="clipboard-read; clipboard-write"
-            />
+          {runId && recording ? (
+            <LiveReplayer runId={runId} />
           ) : !recording ? (
             <div
               style={{

@@ -17,6 +17,35 @@ import type { Persona } from '@/src/persona/types';
 import type { Step } from '@/src/agent/types';
 import type { Verdict } from '@/src/verdict/types';
 
+function connectWithBackoff(url: string, onMessage: (data: string) => void, signal: { aborted: boolean }): { close: () => void } {
+  let ws: WebSocket | undefined;
+  let delay = 250;
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  let closed = false;
+
+  const open = () => {
+    if (closed || signal.aborted) return;
+    ws = new WebSocket(url);
+    ws.onmessage = (m) => onMessage(m.data as string);
+    ws.onopen = () => { delay = 250; };
+    ws.onclose = () => {
+      if (closed || signal.aborted) return;
+      timer = setTimeout(open, delay);
+      delay = Math.min(delay * 2, 4000);
+    };
+    ws.onerror = () => { ws?.close(); };
+  };
+  open();
+
+  return {
+    close: () => {
+      closed = true;
+      if (timer) clearTimeout(timer);
+      ws?.close();
+    },
+  };
+}
+
 // Mirror of the server-side RunRecord shape (kept here to avoid pulling in node:crypto).
 interface RunRecord {
   id: string;
@@ -25,7 +54,6 @@ interface RunRecord {
   targetUrl: string;
   goal: string;
   viewport: 'desktop' | 'mobile';
-  liveViewUrl?: string;
   steps: Step[];
   verdict?: Verdict;
   error?: string;
@@ -98,32 +126,51 @@ export default function RunViewPage({ params }: { params: Promise<{ id: string }
   const [notFound, setNotFound] = useState(false);
   const [, setTick] = useState(0);
 
-  // Poll the run state.
+  // Initial state via REST + live updates via /events WS.
   useEffect(() => {
     let active = true;
-    let timeout: ReturnType<typeof setTimeout> | undefined;
-    async function poll() {
-      try {
-        const res = await fetch(`/api/runs/${id}`);
-        if (!active) return;
-        if (res.status === 404) {
-          setNotFound(true);
-          return;
-        }
-        if (res.ok) {
-          const data = (await res.json()) as { run: RunRecord };
-          setRun(data.run);
-          if (data.run.status === 'completed' || data.run.status === 'failed') return;
-        }
-      } catch {
-        // network blip — try again next tick
+
+    // Initial state via REST (also covers 404).
+    (async () => {
+      const res = await fetch(`/api/runs/${id}`);
+      if (!active) return;
+      if (res.status === 404) {
+        setNotFound(true);
+        return;
       }
-      timeout = setTimeout(poll, 1000);
-    }
-    void poll();
+      if (res.ok) {
+        const data = (await res.json()) as { run: RunRecord; steps?: Step[] };
+        setRun({ ...data.run, steps: data.steps ?? data.run.steps ?? [] });
+      }
+    })();
+
+    // Live updates via /events WS.
+    const wsBase = process.env.NEXT_PUBLIC_WORKER_WS ?? 'ws://localhost:5174';
+    const signal = { aborted: false };
+    const conn = connectWithBackoff(`${wsBase}/runs/${id}/events`, (data) => {
+      const event = JSON.parse(data) as
+        | { type: 'snapshot'; payload: { run: RunRecord; steps: Step[] } }
+        | { type: 'step'; payload: Step }
+        | { type: 'status'; payload: { status: RunRecord['status']; verdict?: Verdict; error?: string } };
+      setRun((cur) => {
+        if (event.type === 'snapshot') return { ...event.payload.run, steps: event.payload.steps };
+        if (!cur) return cur;
+        if (event.type === 'step') return { ...cur, steps: [...cur.steps, event.payload] };
+        if (event.type === 'status')
+          return {
+            ...cur,
+            status: event.payload.status,
+            verdict: event.payload.verdict ?? cur.verdict,
+            error: event.payload.error ?? cur.error,
+          };
+        return cur;
+      });
+    }, signal);
+
     return () => {
       active = false;
-      if (timeout) clearTimeout(timeout);
+      signal.aborted = true;
+      conn.close();
     };
   }, [id]);
 
@@ -262,7 +309,7 @@ export default function RunViewPage({ params }: { params: Promise<{ id: string }
           totalSteps={25}
           trail={trail}
         />
-        <Viewport url={run.targetUrl} liveViewUrl={run.liveViewUrl} recording={running} />
+        <Viewport url={run.targetUrl} runId={run.id} recording={running} />
         {run.status === 'completed' && run.verdict ? (
           <VerdictPanel verdict={run.verdict} costume={run.persona.costume} />
         ) : run.status === 'failed' ? (
