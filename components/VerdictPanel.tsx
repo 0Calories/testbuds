@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import { Testbud, type Expression } from './Testbud';
 import { btnGhost, btnPrimary } from './buttons';
 import type { Costume } from '@/src/persona/types';
@@ -99,9 +100,11 @@ export interface VerdictPanelProps {
   verdict: Verdict;
   costume: Costume;
   highlight?: string;
+  /** When set, the panel footer surfaces a CTA to the run's wrap-up screen. */
+  runId?: string;
 }
 
-export function VerdictPanel({ verdict, costume }: VerdictPanelProps) {
+export function VerdictPanel({ verdict, costume, runId }: VerdictPanelProps) {
   const v = VERDICT_MAP[verdict.decision];
   const confidence10 = Math.max(0, Math.min(10, Math.round(verdict.confidence * 10)));
   return (
@@ -222,9 +225,36 @@ export function VerdictPanel({ verdict, costume }: VerdictPanelProps) {
           gap: 8,
         }}
       >
-        <button type="button" style={{ ...btnPrimary(), flex: 1 }} disabled>
-          Export report
-        </button>
+        {runId ? (
+          <Link
+            href={`/runs/${runId}/wrap-up`}
+            style={{
+              ...btnPrimary(),
+              flex: 1,
+              textDecoration: 'none',
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 8,
+            }}
+          >
+            See wrap-up
+            <svg width="13" height="13" viewBox="0 0 14 14" aria-hidden>
+              <path
+                d="M 3 7 L 11 7 M 7 3 L 11 7 L 7 11"
+                stroke="currentColor"
+                strokeWidth="1.8"
+                fill="none"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+          </Link>
+        ) : (
+          <button type="button" style={{ ...btnPrimary(), flex: 1 }} disabled>
+            Export report
+          </button>
+        )}
         <button type="button" style={btnGhost()} disabled>
           Share with team
         </button>
