@@ -1,6 +1,7 @@
 'use client';
 
 import { use, useEffect, useState } from 'react';
+import Link from 'next/link';
 import { AppHeader } from '@/components/AppHeader';
 import { BrowserFrame } from '@/components/BrowserFrame';
 import { PhoneViewport } from '@/components/PhoneViewport';
@@ -279,6 +280,34 @@ export default function RunViewPage({ params }: { params: Promise<{ id: string }
         <button type="button" style={btnDanger()} disabled>
           Stop run
         </button>
+      ) : run.status === 'completed' ? (
+        <>
+          <button type="button" style={btnGhost()} onClick={() => (window.location.href = '/')}>
+            New run
+          </button>
+          <Link
+            href={`/runs/${run.id}/wrap-up`}
+            style={{
+              ...btnPrimary(),
+              textDecoration: 'none',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 8,
+            }}
+          >
+            See wrap-up
+            <svg width="13" height="13" viewBox="0 0 14 14" aria-hidden>
+              <path
+                d="M 3 7 L 11 7 M 7 3 L 11 7 L 7 11"
+                stroke="currentColor"
+                strokeWidth="1.8"
+                fill="none"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+          </Link>
+        </>
       ) : (
         <button type="button" style={btnPrimary()} onClick={() => (window.location.href = '/')}>
           New run
@@ -311,7 +340,7 @@ export default function RunViewPage({ params }: { params: Promise<{ id: string }
         />
         <Viewport url={run.targetUrl} runId={run.id} recording={running} />
         {run.status === 'completed' && run.verdict ? (
-          <VerdictPanel verdict={run.verdict} costume={run.persona.costume} />
+          <VerdictPanel verdict={run.verdict} costume={run.persona.costume} runId={run.id} />
         ) : run.status === 'failed' ? (
           <div
             style={{

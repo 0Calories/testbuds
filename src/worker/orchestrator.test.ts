@@ -19,6 +19,13 @@ describe('Orchestrator subscribers', () => {
       frictionList: [],
       summary: 'stub',
       highlight: 'stub',
+      headline: 'stub',
+      theOneThing: 'stub',
+      wins: [],
+      partingNote: 'stub',
+      pagesExplored: 0,
+      pagesEstimatedTotal: 0,
+      nextPersonaSuggestion: { slug: 'roi-driven-buyer', reason: 'stub' },
     }) });
   });
 
