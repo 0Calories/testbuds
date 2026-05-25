@@ -16,6 +16,10 @@ const RRWEB_BOOT = `
     recordCrossOriginIframes: true,
     collectFonts: true,
     inlineStylesheet: true,
+    // Belt-and-suspenders: rrweb already masks <input type="password"> by
+    // default, but we set this explicitly so the privacy guarantee lives in
+    // our code rather than relying on the upstream default.
+    maskInputOptions: { password: true },
     sampling: { mousemove: false, scroll: 100, input: 'last' },
   });
 `;

@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "next dev",
     "worker": "tsx watch src/worker/index.ts",
+    "worker:prod": "tsx src/worker/index.ts",
     "preworker": "lsof -ti :${WORKER_PORT:-5174} 2>/dev/null | xargs kill -9 2>/dev/null; true",
     "dev:all": "concurrently -n next,worker -c blue,green \"pnpm dev\" \"pnpm worker\"",
     "build": "next build",
