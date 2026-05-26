@@ -595,7 +595,7 @@ export default function NewRunPage() {
                 </Field>
                 <div style={{ height: 24 }} />
 
-                <FieldLabel hint="In-memory only · never sent to the LLM, never logged">Sign-in (only if the goal needs it)</FieldLabel>
+                <FieldLabel hint="In-memory only · never sent to the LLM, never logged">Sign-In Details (Optional)</FieldLabel>
                 <p
                   style={{
                     fontSize: 12.5,
@@ -604,10 +604,7 @@ export default function NewRunPage() {
                     margin: '0 0 10px',
                   }}
                 >
-                  Skip if your goal is about marketing pages, docs, pricing, or anything else
-                  the bud can reach without signing in. Fill in when the goal needs the bud
-                  inside the authenticated app (e.g. <em>create a habit</em>, <em>cancel my
-                  plan</em>) — a dedicated test account is recommended.
+                  Only needed for testing flows that require authentication. We suggest setting up a test account in your product for your Bud to use.
                 </p>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }}>
                   <Field>
