@@ -9,30 +9,26 @@ function fakePage(opts: {
   const calls: Call[] = [];
   const fillCalls: { selector: string; value: string }[] = [];
 
+  const isSubmitSelector = (s: string) =>
+    s.includes('button[type="submit"]') || s.includes(':has-text(');
+  const isPasswordSelector = (s: string) => s === 'input[type="password"]';
+
   function locator(selector: string) {
     return {
       first() {
         return {
           async fill(value: string, _o?: unknown) {
-            const isPwd = selector === 'input[type="password"]';
-            const isEmail = !isPwd;
+            const isPwd = isPasswordSelector(selector);
+            const isEmail = !isPwd && !isSubmitSelector(selector);
             if (opts.failOn === 'fill-email' && isEmail) throw new Error('email fill failed');
             if (opts.failOn === 'fill-password' && isPwd) throw new Error('password fill failed');
             fillCalls.push({ selector, value });
             calls.push({ kind: 'fill', args: [selector, value] });
           },
-        };
-      },
-    };
-  }
-
-  function getByRole(_role: string, _opts: unknown) {
-    return {
-      first() {
-        return {
           async click() {
+            if (!isSubmitSelector(selector)) throw new Error('click on non-submit selector');
             if (opts.failOn === 'click') throw new Error('click failed');
-            calls.push({ kind: 'click', args: [] });
+            calls.push({ kind: 'click', args: [selector] });
           },
         };
       },
@@ -46,7 +42,6 @@ function fakePage(opts: {
         calls.push({ kind: 'goto', args: [url] });
       },
       locator,
-      getByRole,
       async waitForLoadState(_state: string, _o?: unknown) {
         calls.push({ kind: 'waitForLoadState', args: [] });
       },

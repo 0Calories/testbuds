@@ -23,7 +23,13 @@ export async function establishAuth(page: Page, connection: Connection): Promise
       'input[type="email"], input[autocomplete="username"], input[name*="email" i], input[name*="user" i]'
     ).first();
     const pwd = page.locator('input[type="password"]').first();
-    const submit = page.getByRole('button', { name: /sign in|log in|continue/i }).first();
+    // Stagehand v3's V3Page wrapper exposes `locator()` but not `getByRole()`,
+    // so we stick to CSS-only selectors here. `button[type="submit"]` is the
+    // load-bearing primary; the `:has-text(...)` variants are fallbacks for
+    // forms that use a plain <button> without an explicit type attribute.
+    const submit = page.locator(
+      'button[type="submit"], input[type="submit"], button:has-text("Sign in"), button:has-text("Log in"), button:has-text("Login"), button:has-text("Continue")'
+    ).first();
 
     await email.fill(connection.username, { timeout: 5000 });
     await pwd.fill(connection.password, { timeout: 5000 });
