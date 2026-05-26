@@ -70,3 +70,91 @@ describe('HTTP routes', () => {
     expect(json.runs.length).toBeGreaterThanOrEqual(1);
   });
 });
+
+describe('HTTP routes — credentials', () => {
+  const PORT_C = 5380 + Math.floor(Math.random() * 100);
+  const BASE_C = `http://localhost:${PORT_C}`;
+  let dir: string;
+  let store: Store;
+  let orch: Orchestrator;
+  let server: ReturnType<typeof buildHttpServer>;
+  let capturedConnection: unknown;
+
+  beforeEach(() => {
+    dir = mkdtempSync(join(tmpdir(), 'testbuds-http-creds-'));
+    store = new Store({ dataDir: dir });
+    capturedConnection = undefined;
+    orch = new Orchestrator({
+      store,
+      runRunner: async (input) => {
+        capturedConnection = input.connection;
+        return { decision: 'would_buy', summary: '' } as never;
+      },
+    });
+    server = buildHttpServer({ port: PORT_C, store, orchestrator: orch });
+  });
+
+  afterEach(async () => {
+    await new Promise<void>((r) => server.close(() => r()));
+    store.close();
+    rmSync(dir, { recursive: true, force: true });
+  });
+
+  it('builds a test-credential Connection when all three credentials are provided', async () => {
+    const res = await fetch(`${BASE_C}/runs`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        personaSlug: 'skeptical-bargain-hunter',
+        targetUrl: 'https://app.example.com',
+        goal: 'evaluate',
+        viewport: 'desktop',
+        loginUrl: 'https://app.example.com/login',
+        username: 'bud@testbuds.dev',
+        password: 'pw123',
+      }),
+    });
+    expect(res.status).toBe(200);
+    // Give the fire-and-forget runLoop a tick to call runRunner.
+    await new Promise((r) => setTimeout(r, 30));
+    expect(capturedConnection).toMatchObject({
+      mode: 'test-credential',
+      loginUrl: 'https://app.example.com/login',
+      username: 'bud@testbuds.dev',
+    });
+  });
+
+  it('rejects partial credentials with 400', async () => {
+    const res = await fetch(`${BASE_C}/runs`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        personaSlug: 'skeptical-bargain-hunter',
+        targetUrl: 'https://app.example.com',
+        goal: 'evaluate',
+        viewport: 'desktop',
+        loginUrl: 'https://app.example.com/login',
+        // username + password omitted
+      }),
+    });
+    expect(res.status).toBe(400);
+    const json = (await res.json()) as { error: string };
+    expect(json.error).toMatch(/loginUrl.*username.*password/i);
+  });
+
+  it('omits Connection when no credentials are provided (existing behavior)', async () => {
+    const res = await fetch(`${BASE_C}/runs`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        personaSlug: 'skeptical-bargain-hunter',
+        targetUrl: 'https://app.example.com',
+        goal: 'evaluate',
+        viewport: 'desktop',
+      }),
+    });
+    expect(res.status).toBe(200);
+    await new Promise((r) => setTimeout(r, 30));
+    expect(capturedConnection).toBeUndefined();
+  });
+});
