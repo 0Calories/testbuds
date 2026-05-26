@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react';
 import { Testbud, type Expression } from './Testbud';
 import type { Costume } from '@/src/persona/types';
 
-export type FeedKind = 'thought' | 'action' | 'observation' | 'friction' | 'arrived';
+export type FeedKind = 'thought' | 'action' | 'observation' | 'friction' | 'arrived' | 'auth';
 
 export interface FeedItemData {
   index: number;
@@ -17,9 +17,32 @@ const KIND_META: Record<FeedKind, { tag: string; color: string }> = {
   observation: { tag: 'sees', color: 'var(--color-bud-deep)' },
   friction: { tag: 'friction', color: 'var(--color-coral)' },
   arrived: { tag: 'arrived', color: 'var(--color-ink-3)' },
+  auth: { tag: 'signed in', color: 'var(--color-ink-3)' },
 };
 
 function FeedItem({ kind, expression, text }: FeedItemData) {
+  if (kind === 'auth') {
+    return (
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 8,
+          padding: '10px 16px',
+          borderBottom: '1px solid var(--color-line-soft)',
+          color: 'var(--color-ink-3)',
+          fontStyle: 'italic',
+          fontSize: 12,
+        }}
+      >
+        <svg width="11" height="11" viewBox="0 0 11 11" aria-hidden style={{ flexShrink: 0 }}>
+          <circle cx="5.5" cy="5.5" r="4.5" fill="none" stroke="currentColor" strokeWidth="1.2" />
+          <path d="M 3.3 5.5 L 4.9 7.1 L 7.7 4.4" stroke="currentColor" strokeWidth="1.4" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+        <span>{text}</span>
+      </div>
+    );
+  }
   const meta = KIND_META[kind];
   return (
     <div

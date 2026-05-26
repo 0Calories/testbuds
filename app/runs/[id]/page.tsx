@@ -71,6 +71,7 @@ function formatElapsed(ms: number): string {
 }
 
 function classifyKind(step: Step): FeedKind {
+  if (step.action.kind === 'auth') return 'auth';
   if (step.actionResult === 'failed') return 'friction';
   if (step.reaction.emotion === 'frustrated' || step.reaction.emotion === 'impatient') return 'friction';
   if (step.index === 0) return 'arrived';
@@ -92,6 +93,7 @@ function buildTrailItems(steps: Step[], running: boolean): TrailItem[] {
 /** Third-person description of what the bud did this step, for the trail. */
 function trailActionFor(step: Step): string | undefined {
   const a = step.action;
+  if (a.kind === 'auth' && a.username) return `Signed in as ${a.username}`;
   if (a.kind === 'navigate' && a.url) return `Going to ${truncateUrl(a.url)}`;
   if (a.kind === 'finish') {
     if (a.outcome === 'gave_up') return 'Giving up';
