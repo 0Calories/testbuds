@@ -5,8 +5,12 @@ import { getPersona } from '../persona/library';
 import type { Connection } from '../connection/types';
 
 /** Attach the full Persona object so the web UI can read `run.persona.{name,costume}`. */
-function hydrateRun(run: RunRecord): RunRecord & { persona: ReturnType<typeof getPersona> } {
-  return { ...run, persona: getPersona(run.personaSlug) };
+function hydrateRun(run: RunRecord, orchestrator: Orchestrator) {
+  return {
+    ...run,
+    persona: getPersona(run.personaSlug),
+    authedAs: orchestrator.getAuthedAs(run.id),
+  };
 }
 
 export interface HttpDeps {
@@ -70,7 +74,7 @@ async function handle(req: IncomingMessage, res: ServerResponse, deps: HttpDeps)
   }
 
   if (method === 'GET' && url === '/runs') {
-    return json(res, 200, { runs: deps.store.listRuns().map(hydrateRun) });
+    return json(res, 200, { runs: deps.store.listRuns().map((r) => hydrateRun(r, deps.orchestrator)) });
   }
 
   const stopMatch = url.match(RUN_ID_STOP);
@@ -86,7 +90,7 @@ async function handle(req: IncomingMessage, res: ServerResponse, deps: HttpDeps)
     const id = runMatch[1]!;
     const run = deps.store.getRun(id);
     if (!run) return json(res, 404, { error: 'Run not found' });
-    return json(res, 200, { run: hydrateRun(run), steps: deps.store.getRunSteps(id) });
+    return json(res, 200, { run: hydrateRun(run, deps.orchestrator), steps: deps.store.getRunSteps(id) });
   }
 
   json(res, 404, { error: 'Not found' });
