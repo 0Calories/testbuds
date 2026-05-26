@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, type CSSProperties, type ReactNode } from 'react';
+import { useEffect, useState, type CSSProperties, type ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
 import { AppHeader } from '@/components/AppHeader';
 import { PersonaPickCard } from '@/components/PersonaPickCard';
@@ -410,6 +410,22 @@ export default function NewRunPage() {
   const [recordVideo, setRecordVideo] = useState<boolean>(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string>();
+  const [loginUrlEdited, setLoginUrlEdited] = useState(false);
+
+  useEffect(() => {
+    if (loginUrlEdited) return;
+    if (!targetUrl) {
+      setLoginUrl('');
+      return;
+    }
+    try {
+      const t = targetUrl.startsWith('http') ? targetUrl : `https://${targetUrl}`;
+      const origin = new URL(t).origin;
+      setLoginUrl(`${origin}/login`);
+    } catch {
+      /* invalid URL while user types — leave loginUrl alone */
+    }
+  }, [targetUrl, loginUrlEdited]);
 
   const persona = personaSlug ? personaLibrary.find((p) => p.slug === personaSlug) : undefined;
   const notices = persona ? (noticesByPersona[persona.slug] ?? []) : [];
@@ -421,6 +437,12 @@ export default function NewRunPage() {
 
   async function submit() {
     if (!persona) return;
+    const hasAnyCred = !!(loginUrl || username || password);
+    const hasAllCreds = !!(loginUrl && username && password);
+    if (hasAnyCred && !hasAllCreds) {
+      setError('Provide all three of login URL, email, and password — or leave them all blank.');
+      return;
+    }
     setSubmitting(true);
     setError(undefined);
     try {
@@ -573,7 +595,7 @@ export default function NewRunPage() {
                 </Field>
                 <div style={{ height: 24 }} />
 
-                <FieldLabel hint="Optional · stored only for this run">Test-account credentials</FieldLabel>
+                <FieldLabel hint="Optional · in memory only · never sent to the LLM, never logged">Test-account credentials</FieldLabel>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }}>
                   <Field>
                     <div
@@ -591,7 +613,7 @@ export default function NewRunPage() {
                     <input
                       className="mono"
                       value={loginUrl}
-                      onChange={(e) => setLoginUrl(e.target.value)}
+                      onChange={(e) => { setLoginUrl(e.target.value); setLoginUrlEdited(true); }}
                       placeholder="https://app.example.com/login"
                       style={inputBare()}
                     />
