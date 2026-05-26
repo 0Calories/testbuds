@@ -24,7 +24,7 @@ Synthetic customers that **actually use your product** and tell you what they th
 
 Real customer research costs **~$200 a session** and takes **two weeks** to schedule. Testbuds gives you access to AI agents who will roleplay as your target customer persona, and then give you raw unfiltered feedback on what they think. At the end, you instantly get a detailed report with friction points, what hit or miss with the user, and even actionable insights on how you can improve your product.
 
-## What you get
+## How it works
 
 Pick a bud. Each bud has their own persona, a personality type that dermines how they use, interact with, and think about your product. Point it at a URL — your landing page, or your live product behind a login. Then **watch live** as the bud actually uses your product: clicking around your real site, narrating their thoughts in their own voice, their expression shifting as they hit friction or delight. When they finish, you get:
 
