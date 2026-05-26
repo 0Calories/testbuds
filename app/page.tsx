@@ -595,7 +595,20 @@ export default function NewRunPage() {
                 </Field>
                 <div style={{ height: 24 }} />
 
-                <FieldLabel hint="Optional · in memory only · never sent to the LLM, never logged">Test-account credentials</FieldLabel>
+                <FieldLabel hint="In-memory only · never sent to the LLM, never logged">Sign-in (only if the goal needs it)</FieldLabel>
+                <p
+                  style={{
+                    fontSize: 12.5,
+                    color: 'var(--color-ink-3)',
+                    lineHeight: 1.5,
+                    margin: '0 0 10px',
+                  }}
+                >
+                  Skip if your goal is about marketing pages, docs, pricing, or anything else
+                  the bud can reach without signing in. Fill in when the goal needs the bud
+                  inside the authenticated app (e.g. <em>create a habit</em>, <em>cancel my
+                  plan</em>) — a dedicated test account is recommended.
+                </p>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }}>
                   <Field>
                     <div
