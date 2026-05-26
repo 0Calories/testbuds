@@ -8,7 +8,6 @@ import { establishAuth } from '../connection/auth';
 import type { Step, Action } from '../agent/types';
 import type { Verdict } from '../verdict/types';
 import type { RunRunner } from './orchestrator';
-import type { Page } from 'playwright';
 
 interface AgentStepLike {
   text?: string;
@@ -36,10 +35,12 @@ export function makeWorkerRunner(): RunRunner {
       abortSignal.addEventListener('abort', () => innerAbort.abort());
 
       if (connection) {
-        // V3Page is Stagehand-internal and not assignable to Playwright Page directly;
-        // cast here since establishAuth only uses goto/locator/fill/click/waitForLoadState,
-        // all of which V3Page supports at runtime.
-        await establishAuth(host.page as unknown as Page, connection);
+        // Use the real Playwright Page (attached via CDP alongside Stagehand).
+        // V3Page's locator() doesn't speak the Playwright selector engine, so
+        // any non-trivial CSS — compound, :has-text, getByRole — fails. The
+        // Playwright client sees the same tab; cookies set during sign-in
+        // persist when Stagehand takes over.
+        await establishAuth(host.playwrightPage, connection);
         if (connection.mode === 'test-credential') {
           const authStep = buildAuthStep(connection.username, connection.loginUrl);
           steps.push(authStep);
