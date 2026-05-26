@@ -16,8 +16,11 @@ export async function POST(request: Request) {
 
   // All-or-none rule for credentials. The form mirrors this; we revalidate
   // here so a malformed direct API call gets a clean 400 instead of round-
-  // tripping to the worker.
-  const hasAnyCred = !!(body.loginUrl || body.username || body.password);
+  // tripping to the worker. `hasAnyCred` treats "present at all" (including
+  // empty string) as a signal — matching the worker's stricter check — so a
+  // direct API call sending `loginUrl: ""` with the other two filled is
+  // caught here as partial rather than silently dropped.
+  const hasAnyCred = body.loginUrl !== undefined || body.username !== undefined || body.password !== undefined;
   const hasAllCreds = !!(body.loginUrl && body.username && body.password);
   if (hasAnyCred && !hasAllCreds) {
     return NextResponse.json(
