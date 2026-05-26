@@ -87,7 +87,7 @@ describe('Orchestrator startRun connection plumbing', () => {
     const orch = new Orchestrator({
       store,
       runRunner: async (input) => {
-        seen.push({ runId: input.run.id, connection: (input as unknown as { connection?: unknown }).connection });
+        seen.push({ runId: input.run.id, connection: input.connection });
         await new Promise<void>((r) => { resolveRun = r; });
         return {
           decision: 'would_investigate', confidence: 0.5, frictionList: [],
@@ -128,7 +128,7 @@ describe('Orchestrator startRun connection plumbing', () => {
     const orch = new Orchestrator({
       store,
       runRunner: async (input) => {
-        seen.push({ connection: (input as unknown as { connection?: unknown }).connection });
+        seen.push({ connection: input.connection });
         return {
           decision: 'would_investigate', confidence: 0.5, frictionList: [],
           summary: 's', highlight: 'h', headline: 'h', theOneThing: 't',
