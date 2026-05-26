@@ -60,6 +60,7 @@ interface RunRecord {
   error?: string;
   startedAt: number;
   completedAt?: number;
+  authedAs?: string;
 }
 
 function formatElapsed(ms: number): string {
@@ -273,6 +274,32 @@ export default function RunViewPage({ params }: { params: Promise<{ id: string }
 
   const actions = (
     <>
+      {run.authedAs && (
+        <span
+          className="mono"
+          aria-label={`Signed in as ${run.authedAs}`}
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 6,
+            fontSize: 11,
+            letterSpacing: '0.08em',
+            textTransform: 'uppercase',
+            color: 'var(--color-ink-3)',
+            background: 'var(--color-paper-deep)',
+            border: '1px solid var(--color-line)',
+            borderRadius: 999,
+            padding: '4px 10px',
+            marginRight: 4,
+          }}
+        >
+          <svg width="10" height="10" viewBox="0 0 10 10" aria-hidden>
+            <circle cx="5" cy="5" r="4" fill="none" stroke="currentColor" strokeWidth="1.2" />
+            <path d="M 3 5 L 4.5 6.5 L 7 4" stroke="currentColor" strokeWidth="1.4" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+          Signed in as {run.authedAs}
+        </span>
+      )}
       <button type="button" style={btnGhost()} disabled>
         Share
       </button>
