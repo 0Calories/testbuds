@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { humanizeToolCall } from './runner';
+import { humanizeToolCall, buildAuthStep } from './runner';
 
 describe('humanizeToolCall', () => {
   it('describes a screenshot without args', () => {
@@ -36,5 +36,26 @@ describe('humanizeToolCall', () => {
     expect(out).toBe('exotic_tool');
     expect(out).not.toContain('{');
     expect(out).not.toContain('[');
+  });
+});
+
+describe('buildAuthStep', () => {
+  it('produces a synthetic step #0 with no emotion bubble', () => {
+    const step = buildAuthStep('bud@testbuds.dev');
+    expect(step.index).toBe(0);
+    expect(step.action.kind).toBe('auth');
+    expect(step.action.username).toBe('bud@testbuds.dev');
+    expect(step.bubble).toBe('');
+    expect(step.narration).toContain('bud@testbuds.dev');
+    expect(step.reaction.emotion).toBe('neutral');
+    expect(step.reaction.intensity).toBe(0);
+    expect(step.actionResult).toBe('ok');
+  });
+
+  it('does not leak any password material into the step', () => {
+    const step = buildAuthStep('bud@testbuds.dev');
+    const json = JSON.stringify(step);
+    expect(json).not.toContain('password');
+    expect(json).not.toContain('Password');
   });
 });

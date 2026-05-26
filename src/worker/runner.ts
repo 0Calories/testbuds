@@ -4,9 +4,11 @@ import { getPersona } from '../persona/library';
 import { synthesizeVerdict } from '../verdict/synthesizer';
 import { makeReactTool, makeFinishTool, type ReactToolInput, type FinishToolInput } from '../agent/tools';
 import { launchStagehandHost } from './stagehand-host';
+import { establishAuth } from '../connection/auth';
 import type { Step, Action } from '../agent/types';
 import type { Verdict } from '../verdict/types';
 import type { RunRunner } from './orchestrator';
+import type { Page } from 'playwright';
 
 interface AgentStepLike {
   text?: string;
@@ -17,7 +19,7 @@ interface AgentStepLike {
 export function makeWorkerRunner(): RunRunner {
   const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
-  return async ({ run, emitRrweb, emitStep, abortSignal }) => {
+  return async ({ run, connection, emitRrweb, emitStep, abortSignal }) => {
     const persona = getPersona(run.personaSlug);
     if (!persona) throw new Error(`Unknown persona: ${run.personaSlug}`);
 
@@ -27,13 +29,25 @@ export function makeWorkerRunner(): RunRunner {
     });
 
     try {
-      await host.page.goto(run.targetUrl);
-
       const steps: Step[] = [];
       let pendingReact: ReactToolInput | null = null;
       let finalDecision: FinishToolInput | null = null;
       const innerAbort = new AbortController();
       abortSignal.addEventListener('abort', () => innerAbort.abort());
+
+      if (connection) {
+        // V3Page is Stagehand-internal and not assignable to Playwright Page directly;
+        // cast here since establishAuth only uses goto/locator/fill/click/waitForLoadState,
+        // all of which V3Page supports at runtime.
+        await establishAuth(host.page as unknown as Page, connection);
+        if (connection.mode === 'test-credential') {
+          const authStep = buildAuthStep(connection.username);
+          steps.push(authStep);
+          emitStep(authStep);
+        }
+      }
+
+      await host.page.goto(run.targetUrl);
 
       const reactTool = makeReactTool((r) => { pendingReact = r; });
       const finishTool = makeFinishTool((f) => { finalDecision = f; innerAbort.abort(); });
@@ -177,6 +191,18 @@ function mapToolCallToAction(toolName: string, input: unknown): Action {
   const args = (input ?? {}) as Record<string, unknown>;
   if (toolName === 'goto' && typeof args.url === 'string') return { kind: 'navigate', url: args.url };
   return { kind: 'act', instruction: humanizeToolCall(toolName, args) };
+}
+
+export function buildAuthStep(username: string): Step {
+  return {
+    index: 0,
+    url: '',
+    bubble: '',
+    narration: `Bud signed in as ${username}`,
+    reaction: { emotion: 'neutral', intensity: 0 },
+    action: { kind: 'auth', username },
+    actionResult: 'ok',
+  };
 }
 
 /**
