@@ -437,10 +437,15 @@ export default function NewRunPage() {
 
   async function submit() {
     if (!persona) return;
-    const hasAnyCred = !!(loginUrl || username || password);
+    // Intent to sign in is signalled by email/password (the fields the user
+    // actually has to type). loginUrl is auto-prefilled from targetUrl, so
+    // including it in the "any cred filled?" check would gate every public
+    // run on email/password being filled. Only enforce all-or-none once the
+    // user has actually started entering credentials.
+    const hasAnyCred = !!(username || password);
     const hasAllCreds = !!(loginUrl && username && password);
     if (hasAnyCred && !hasAllCreds) {
-      setError('Provide all three of login URL, email, and password — or leave them all blank.');
+      setError('Provide login URL, email, and password — or leave them all blank.');
       return;
     }
     setSubmitting(true);
