@@ -41,7 +41,7 @@ export function makeWorkerRunner(): RunRunner {
         // all of which V3Page supports at runtime.
         await establishAuth(host.page as unknown as Page, connection);
         if (connection.mode === 'test-credential') {
-          const authStep = buildAuthStep(connection.username);
+          const authStep = buildAuthStep(connection.username, connection.loginUrl);
           steps.push(authStep);
           emitStep(authStep);
         }
@@ -193,10 +193,10 @@ function mapToolCallToAction(toolName: string, input: unknown): Action {
   return { kind: 'act', instruction: humanizeToolCall(toolName, args) };
 }
 
-export function buildAuthStep(username: string): Step {
+export function buildAuthStep(username: string, loginUrl: string): Step {
   return {
     index: 0,
-    url: '',
+    url: loginUrl,
     bubble: '',
     narration: `Bud signed in as ${username}`,
     reaction: { emotion: 'neutral', intensity: 0 },

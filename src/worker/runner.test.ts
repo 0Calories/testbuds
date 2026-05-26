@@ -41,8 +41,9 @@ describe('humanizeToolCall', () => {
 
 describe('buildAuthStep', () => {
   it('produces a synthetic step #0 with no emotion bubble', () => {
-    const step = buildAuthStep('bud@testbuds.dev');
+    const step = buildAuthStep('bud@testbuds.dev', 'https://app.example.com/login');
     expect(step.index).toBe(0);
+    expect(step.url).toBe('https://app.example.com/login');
     expect(step.action.kind).toBe('auth');
     expect(step.action.username).toBe('bud@testbuds.dev');
     expect(step.bubble).toBe('');
@@ -53,7 +54,7 @@ describe('buildAuthStep', () => {
   });
 
   it('does not leak any password material into the step', () => {
-    const step = buildAuthStep('bud@testbuds.dev');
+    const step = buildAuthStep('bud@testbuds.dev', 'https://app.example.com/login');
     const json = JSON.stringify(step);
     expect(json).not.toContain('password');
     expect(json).not.toContain('Password');
