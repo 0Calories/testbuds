@@ -2,9 +2,11 @@ import { EventEmitter } from 'node:events';
 import type { Store, RunRecord, ViewportMode } from './store';
 import type { Step } from '../agent/types';
 import type { Verdict } from '../verdict/types';
+import type { Connection } from '../connection/types';
 
 export interface RunRunnerInput {
   run: RunRecord;
+  connection?: Connection;
   emitRrweb: (event: unknown) => void;
   emitStep: (step: Step) => void;
   abortSignal: AbortSignal;
@@ -68,13 +70,18 @@ export class Orchestrator {
     this.eventBus(runId).emit('event', { type: 'status', payload: status });
   }
 
-  startRun(input: { personaSlug: string; targetUrl: string; goal: string; viewport: ViewportMode }): RunRecord {
-    const run = this.deps.store.createRun(input);
+  startRun(input: { personaSlug: string; targetUrl: string; goal: string; viewport: ViewportMode; connection?: Connection }): RunRecord {
+    const run = this.deps.store.createRun({
+      personaSlug: input.personaSlug,
+      targetUrl: input.targetUrl,
+      goal: input.goal,
+      viewport: input.viewport,
+    });
     const abort = new AbortController();
     this.abortControllers.set(run.id, abort);
 
     // Fire-and-forget; the run loop reports state via emit*.
-    void this.runLoop(run, abort.signal).catch((err) => {
+    void this.runLoop(run, input.connection, abort.signal).catch((err) => {
       const msg = err instanceof Error ? err.message : String(err);
       console.error(`[orchestrator] run ${run.id} crashed:`, err);
       this.deps.store.failRun(run.id, msg);
@@ -84,12 +91,13 @@ export class Orchestrator {
     return run;
   }
 
-  private async runLoop(run: RunRecord, signal: AbortSignal): Promise<void> {
+  private async runLoop(run: RunRecord, connection: Connection | undefined, signal: AbortSignal): Promise<void> {
     this.deps.store.markRunning(run.id);
     this.emitStatus(run.id, { status: 'running' });
 
     const verdict = await this.deps.runRunner({
       run,
+      connection,
       emitRrweb: (e) => this.emitRrweb(run.id, e),
       emitStep: (s) => this.emitStep(run.id, s),
       abortSignal: signal,

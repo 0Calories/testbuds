@@ -66,3 +66,80 @@ describe('Orchestrator subscribers', () => {
     expect(aReceived).toHaveLength(0);
   });
 });
+
+describe('Orchestrator startRun connection plumbing', () => {
+  let dir: string;
+  let store: Store;
+
+  beforeEach(() => {
+    dir = mkdtempSync(join(tmpdir(), 'testbuds-orch-conn-'));
+    store = new Store({ dataDir: dir });
+  });
+
+  afterEach(() => {
+    store.close();
+    rmSync(dir, { recursive: true, force: true });
+  });
+
+  it('forwards an optional connection to the runRunner without persisting it', async () => {
+    const seen: { runId: string; connection: unknown }[] = [];
+    let resolveRun: (() => void) | undefined;
+    const orch = new Orchestrator({
+      store,
+      runRunner: async (input) => {
+        seen.push({ runId: input.run.id, connection: (input as unknown as { connection?: unknown }).connection });
+        await new Promise<void>((r) => { resolveRun = r; });
+        return {
+          decision: 'would_investigate', confidence: 0.5, frictionList: [],
+          summary: 's', highlight: 'h', headline: 'h', theOneThing: 't',
+          wins: [], partingNote: 'p', pagesExplored: 0, pagesEstimatedTotal: 0,
+          nextPersonaSuggestion: { slug: 'roi-driven-buyer', reason: 's' },
+        };
+      },
+    });
+
+    const run = orch.startRun({
+      personaSlug: 'x', targetUrl: 'u', goal: 'g', viewport: 'desktop',
+      connection: {
+        mode: 'test-credential',
+        loginUrl: 'https://app.example.com/login',
+        username: 'bud@testbuds.dev',
+        password: 'pw123',
+      },
+    });
+
+    // Let the fire-and-forget runLoop call runRunner.
+    await new Promise((r) => setTimeout(r, 10));
+
+    expect(seen).toHaveLength(1);
+    expect(seen[0]!.runId).toBe(run.id);
+    expect(seen[0]!.connection).toMatchObject({ mode: 'test-credential', username: 'bud@testbuds.dev' });
+
+    // SQLite row must NOT carry the connection.
+    const persisted = store.getRun(run.id);
+    expect(persisted).toBeDefined();
+    expect((persisted as unknown as { connection?: unknown }).connection).toBeUndefined();
+
+    resolveRun?.();
+  });
+
+  it('omits connection from runRunner input when not provided', async () => {
+    const seen: { connection: unknown }[] = [];
+    const orch = new Orchestrator({
+      store,
+      runRunner: async (input) => {
+        seen.push({ connection: (input as unknown as { connection?: unknown }).connection });
+        return {
+          decision: 'would_investigate', confidence: 0.5, frictionList: [],
+          summary: 's', highlight: 'h', headline: 'h', theOneThing: 't',
+          wins: [], partingNote: 'p', pagesExplored: 0, pagesEstimatedTotal: 0,
+          nextPersonaSuggestion: { slug: 'roi-driven-buyer', reason: 's' },
+        };
+      },
+    });
+
+    orch.startRun({ personaSlug: 'x', targetUrl: 'u', goal: 'g', viewport: 'desktop' });
+    await new Promise((r) => setTimeout(r, 10));
+    expect(seen[0]!.connection).toBeUndefined();
+  });
+});
