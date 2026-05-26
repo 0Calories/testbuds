@@ -142,4 +142,50 @@ describe('Orchestrator startRun connection plumbing', () => {
     await new Promise((r) => setTimeout(r, 10));
     expect(seen[0]!.connection).toBeUndefined();
   });
+
+  it('exposes the username for an authed run via getAuthedAs', () => {
+    const orch = new Orchestrator({ store, runRunner: async () => ({
+      decision: 'would_investigate', confidence: 0.5, frictionList: [],
+      summary: 's', highlight: 'h', headline: 'h', theOneThing: 't',
+      wins: [], partingNote: 'p', pagesExplored: 0, pagesEstimatedTotal: 0,
+      nextPersonaSuggestion: { slug: 'roi-driven-buyer', reason: 's' },
+    }) });
+    const run = orch.startRun({
+      personaSlug: 'x', targetUrl: 'u', goal: 'g', viewport: 'desktop',
+      connection: {
+        mode: 'test-credential',
+        loginUrl: 'https://app.example.com/login',
+        username: 'bud@testbuds.dev',
+        password: 'pw',
+      },
+    });
+    expect(orch.getAuthedAs(run.id)).toBe('bud@testbuds.dev');
+  });
+
+  it('returns undefined for a public run', () => {
+    const orch = new Orchestrator({ store, runRunner: async () => ({
+      decision: 'would_investigate', confidence: 0.5, frictionList: [],
+      summary: 's', highlight: 'h', headline: 'h', theOneThing: 't',
+      wins: [], partingNote: 'p', pagesExplored: 0, pagesEstimatedTotal: 0,
+      nextPersonaSuggestion: { slug: 'roi-driven-buyer', reason: 's' },
+    }) });
+    const run = orch.startRun({ personaSlug: 'x', targetUrl: 'u', goal: 'g', viewport: 'desktop' });
+    expect(orch.getAuthedAs(run.id)).toBeUndefined();
+  });
+
+  it('clears the username after stopRun', () => {
+    const orch = new Orchestrator({ store, runRunner: async () => new Promise(() => {}) /* never */ });
+    const run = orch.startRun({
+      personaSlug: 'x', targetUrl: 'u', goal: 'g', viewport: 'desktop',
+      connection: {
+        mode: 'test-credential',
+        loginUrl: 'https://app.example.com/login',
+        username: 'bud@testbuds.dev',
+        password: 'pw',
+      },
+    });
+    expect(orch.getAuthedAs(run.id)).toBe('bud@testbuds.dev');
+    orch.stopRun(run.id);
+    expect(orch.getAuthedAs(run.id)).toBeUndefined();
+  });
 });

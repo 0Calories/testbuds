@@ -27,6 +27,7 @@ export class Orchestrator {
   private liveEmitters = new Map<string, EventEmitter>();
   private eventEmitters = new Map<string, EventEmitter>();
   private abortControllers = new Map<string, AbortController>();
+  private usernames = new Map<string, string>();
 
   constructor(deps: OrchestratorDeps) {
     this.deps = deps;
@@ -80,6 +81,10 @@ export class Orchestrator {
     const abort = new AbortController();
     this.abortControllers.set(run.id, abort);
 
+    if (input.connection && input.connection.mode === 'test-credential') {
+      this.usernames.set(run.id, input.connection.username);
+    }
+
     // Fire-and-forget; the run loop reports state via emit*.
     void this.runLoop(run, input.connection, abort.signal).catch((err) => {
       const msg = err instanceof Error ? err.message : String(err);
@@ -95,19 +100,28 @@ export class Orchestrator {
     this.deps.store.markRunning(run.id);
     this.emitStatus(run.id, { status: 'running' });
 
-    const verdict = await this.deps.runRunner({
-      run,
-      connection,
-      emitRrweb: (e) => this.emitRrweb(run.id, e),
-      emitStep: (s) => this.emitStep(run.id, s),
-      abortSignal: signal,
-    });
+    try {
+      const verdict = await this.deps.runRunner({
+        run,
+        connection,
+        emitRrweb: (e) => this.emitRrweb(run.id, e),
+        emitStep: (s) => this.emitStep(run.id, s),
+        abortSignal: signal,
+      });
 
-    this.deps.store.completeRun(run.id, verdict);
-    this.emitStatus(run.id, { status: 'completed', verdict });
+      this.deps.store.completeRun(run.id, verdict);
+      this.emitStatus(run.id, { status: 'completed', verdict });
+    } finally {
+      this.usernames.delete(run.id);
+    }
   }
 
   stopRun(runId: string): void {
     this.abortControllers.get(runId)?.abort();
+    this.usernames.delete(runId);
+  }
+
+  getAuthedAs(runId: string): string | undefined {
+    return this.usernames.get(runId);
   }
 }
