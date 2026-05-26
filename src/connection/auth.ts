@@ -1,42 +1,42 @@
-import type { Stagehand } from '@browserbasehq/stagehand';
+import type { Page } from 'playwright';
 import type { Connection } from './types';
 
 /**
- * Minimal interface needed to drive a login form during connection auth.
- * Stagehand instances satisfy this via `makeAuthDriver`; tests can supply a mock.
+ * Put the browser into an authenticated state before the agent loop starts.
+ *
+ * - `public`: no-op.
+ * - `test-credential`: navigate to the login URL, fill email + password via
+ *   Playwright `.fill()` (CDP keystroke events — never an LLM prompt),
+ *   submit, and wait briefly for the post-login navigation.
+ *
+ * Failures are swallowed deliberately. The agent loop will start on whatever
+ * page the browser ended up on, and the persona will react to it — a broken
+ * login is friction data, not a crash.
  */
-export interface AuthDriver {
-  navigateTo(url: string): Promise<void>;
-  act(instruction: string): Promise<unknown>;
-}
-
-/** Adapter from a Stagehand instance to the AuthDriver interface. */
-export function makeAuthDriver(stagehand: Stagehand): AuthDriver {
-  return {
-    async navigateTo(url) {
-      const page = stagehand.context?.activePage();
-      if (!page) throw new Error('No active page');
-      await page.goto(url);
-    },
-    async act(instruction) {
-      return stagehand.act(instruction);
-    },
-  };
-}
-
-/**
- * Put the browser into an authenticated state before the agent runs.
- * - public: nothing to do.
- * - test-credential: drive the login form with the supplied credentials.
- */
-export async function establishAuth(
-  driver: AuthDriver,
-  connection: Connection,
-): Promise<void> {
+export async function establishAuth(page: Page, connection: Connection): Promise<void> {
   if (connection.mode === 'public') return;
 
-  await driver.navigateTo(connection.loginUrl);
-  await driver.act(`type "${connection.username}" into the email or username field`);
-  await driver.act(`type "${connection.password}" into the password field`);
-  await driver.act('click the log in or sign in button');
+  try {
+    await page.goto(connection.loginUrl, { waitUntil: 'domcontentloaded' });
+
+    const email = page.locator(
+      'input[type="email"], input[autocomplete="username"], input[name*="email" i], input[name*="user" i]'
+    ).first();
+    const pwd = page.locator('input[type="password"]').first();
+    const submit = page.getByRole('button', { name: /sign in|log in|continue/i }).first();
+
+    await email.fill(connection.username, { timeout: 5000 });
+    await pwd.fill(connection.password, { timeout: 5000 });
+    await submit.click({ timeout: 5000 });
+    await page.waitForLoadState('networkidle', { timeout: 10000 }).catch(() => {
+      /* not all login redirects reach networkidle; agent loop tolerates this */
+    });
+  } catch (err) {
+    // Do NOT include connection.password in the message. Defence-in-depth: the
+    // structural guarantee is that the password is only passed to .fill(),
+    // but if a regression ever logs the error object directly, prefer a static
+    // string here so the leak surface is small.
+    const code = err instanceof Error ? err.message.slice(0, 80) : 'unknown';
+    console.warn(`[auth] sign-in interaction failed (${code}); persona will react to whatever loaded`);
+  }
 }
