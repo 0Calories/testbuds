@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { humanizeToolCall, buildAuthStep } from './runner';
+import { humanizeToolCall, buildAuthStep, framedInstruction } from './runner';
 
 describe('humanizeToolCall', () => {
   it('describes a screenshot without args', () => {
@@ -58,5 +58,26 @@ describe('buildAuthStep', () => {
     const json = JSON.stringify(step);
     expect(json).not.toContain('password');
     expect(json).not.toContain('Password');
+  });
+});
+
+describe('framedInstruction', () => {
+  it('omits the auth banner when no test-credential connection is present', () => {
+    const text = framedInstruction('Decide whether to sign up.');
+    expect(text).not.toContain('ALREADY SIGNED IN');
+    expect(text).toContain('Decide whether to sign up.');
+  });
+
+  it('prepends an auth banner when the run is authed', () => {
+    const text = framedInstruction('Try the dashboard.', true);
+    expect(text).toContain('ALREADY SIGNED IN');
+    expect(text).toContain('Do NOT try to log in or sign up');
+    expect(text).toContain('Try the dashboard.');
+  });
+
+  it('does not include the username or password in the instruction', () => {
+    const text = framedInstruction('Goal here.', true);
+    expect(text).not.toContain('bud@testbuds.dev');
+    expect(text).not.toContain('password');
   });
 });

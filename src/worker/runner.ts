@@ -61,7 +61,7 @@ export function makeWorkerRunner(): RunRunner {
 
       try {
         await agent.execute({
-          instruction: framedInstruction(run.goal),
+          instruction: framedInstruction(run.goal, connection?.mode === 'test-credential'),
           maxSteps: 25,
           signal: innerAbort.signal,
           callbacks: {
@@ -94,10 +94,18 @@ export function makeWorkerRunner(): RunRunner {
   };
 }
 
-function framedInstruction(goal: string): string {
-  return [
+export function framedInstruction(goal: string, isAuthed = false): string {
+  const lines = [
     'You are giving REAL customer feedback as the persona described in <customInstructions>.',
     '',
+  ];
+  if (isAuthed) {
+    lines.push(
+      'You are ALREADY SIGNED IN to this product through a test account that was set up for you before the run started. Do NOT try to log in or sign up — you are already authenticated. If a login or sign-up page ever appears (e.g. you accidentally navigated back to a marketing page), treat it as friction, not as a task to complete. Never invent or type credentials.',
+      '',
+    );
+  }
+  lines.push(
     'The user wants you to answer the following, IN CHARACTER, by using the product the way the persona would:',
     `> ${goal}`,
     '',
@@ -105,7 +113,8 @@ function framedInstruction(goal: string): string {
     'Explore the product enough to ground your decision (scan, scroll, look for the proof your persona cares about). Then decide the way the persona genuinely would, and call `finish` with that decision. Both yes and no are valid outcomes. Bailing is also a valid outcome — bail if the persona would bail.',
     '',
     'Do NOT complete the action implied by the question (sign up, buy, etc.) unless the persona would actually do it after grounded evaluation. A premature "yes" is bad feedback.',
-  ].join('\n');
+  );
+  return lines.join('\n');
 }
 
 function buildCustomInstructions(persona: import('../persona/types').Persona): string {
