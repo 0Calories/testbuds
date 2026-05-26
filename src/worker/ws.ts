@@ -74,7 +74,7 @@ function handleEvents(ws: WebSocket, runId: string, { orchestrator, store }: Att
   }
 
   // 1. Send the current snapshot so a late-joiner sees current state.
-  ws.send(JSON.stringify({ type: 'snapshot', payload: snapshotFor(run, store) }));
+  ws.send(JSON.stringify({ type: 'snapshot', payload: snapshotFor(run, store, orchestrator) }));
 
   // 2. Subscribe.
   const off = orchestrator.subscribeEvents(runId, (event) => {
@@ -85,9 +85,13 @@ function handleEvents(ws: WebSocket, runId: string, { orchestrator, store }: Att
   ws.on('error', off);
 }
 
-function snapshotFor(run: RunRecord, store: Store) {
+function snapshotFor(run: RunRecord, store: Store, orchestrator: Orchestrator) {
   return {
-    run: { ...run, persona: getPersona(run.personaSlug) },
+    run: {
+      ...run,
+      persona: getPersona(run.personaSlug),
+      authedAs: orchestrator.getAuthedAs(run.id),
+    },
     steps: store.getRunSteps(run.id),
   };
 }
