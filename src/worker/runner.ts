@@ -4,6 +4,7 @@ import { getPersona } from '../persona/library';
 import { synthesizeVerdict } from '../verdict/synthesizer';
 import { makeReactTool, makeFinishTool, type ReactToolInput, type FinishToolInput } from '../agent/tools';
 import { launchStagehandHost } from './stagehand-host';
+import { establishAuth } from '../connection/auth';
 import type { Step, Action } from '../agent/types';
 import type { Verdict } from '../verdict/types';
 import type { RunRunner } from './orchestrator';
@@ -17,7 +18,7 @@ interface AgentStepLike {
 export function makeWorkerRunner(): RunRunner {
   const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
-  return async ({ run, emitRrweb, emitStep, abortSignal }) => {
+  return async ({ run, connection, emitRrweb, emitStep, abortSignal }) => {
     const persona = getPersona(run.personaSlug);
     if (!persona) throw new Error(`Unknown persona: ${run.personaSlug}`);
 
@@ -27,13 +28,35 @@ export function makeWorkerRunner(): RunRunner {
     });
 
     try {
-      await host.page.goto(run.targetUrl);
-
       const steps: Step[] = [];
       let pendingReact: ReactToolInput | null = null;
       let finalDecision: FinishToolInput | null = null;
       const innerAbort = new AbortController();
       abortSignal.addEventListener('abort', () => innerAbort.abort());
+
+      // Use the real Playwright Page (attached via CDP alongside Stagehand).
+      // V3Page's locator() doesn't speak the Playwright selector engine, so
+      // any non-trivial CSS — compound, :has-text, getByRole — fails. The
+      // Playwright client sees the same tab; cookies set during sign-in
+      // persist when Stagehand takes over.
+      const authed = connection ? await establishAuth(host.playwrightPage, connection) : false;
+
+      if (authed && connection?.mode === 'test-credential') {
+        const authStep = buildAuthStep(connection.username, connection.loginUrl);
+        steps.push(authStep);
+        emitStep(authStep);
+      }
+
+      // Decide whether to navigate to the user-supplied targetUrl:
+      // - Public / auth failed → yes, navigate (persona reacts to whatever's there).
+      // - Authed and targetUrl is same-origin as the post-login URL → yes (user
+      //   targeted a specific page inside the app, e.g. /billing).
+      // - Authed and targetUrl is a different origin → NO. The marketing site
+      //   the user typed in the form is not where they want the bud to start;
+      //   the post-login destination (typically the app dashboard) is.
+      if (!authed || sameOrigin(host.playwrightPage.url(), run.targetUrl)) {
+        await host.page.goto(run.targetUrl);
+      }
 
       const reactTool = makeReactTool((r) => { pendingReact = r; });
       const finishTool = makeFinishTool((f) => { finalDecision = f; innerAbort.abort(); });
@@ -47,7 +70,7 @@ export function makeWorkerRunner(): RunRunner {
 
       try {
         await agent.execute({
-          instruction: framedInstruction(run.goal),
+          instruction: framedInstruction(run.goal, connection?.mode === 'test-credential'),
           maxSteps: 25,
           signal: innerAbort.signal,
           callbacks: {
@@ -80,10 +103,18 @@ export function makeWorkerRunner(): RunRunner {
   };
 }
 
-function framedInstruction(goal: string): string {
-  return [
+export function framedInstruction(goal: string, isAuthed = false): string {
+  const lines = [
     'You are giving REAL customer feedback as the persona described in <customInstructions>.',
     '',
+  ];
+  if (isAuthed) {
+    lines.push(
+      'You are ALREADY SIGNED IN to this product through a test account that was set up for you before the run started. Do NOT try to log in or sign up — you are already authenticated. If a login or sign-up page ever appears (e.g. you accidentally navigated back to a marketing page), treat it as friction, not as a task to complete. Never invent or type credentials.',
+      '',
+    );
+  }
+  lines.push(
     'The user wants you to answer the following, IN CHARACTER, by using the product the way the persona would:',
     `> ${goal}`,
     '',
@@ -91,7 +122,8 @@ function framedInstruction(goal: string): string {
     'Explore the product enough to ground your decision (scan, scroll, look for the proof your persona cares about). Then decide the way the persona genuinely would, and call `finish` with that decision. Both yes and no are valid outcomes. Bailing is also a valid outcome — bail if the persona would bail.',
     '',
     'Do NOT complete the action implied by the question (sign up, buy, etc.) unless the persona would actually do it after grounded evaluation. A premature "yes" is bad feedback.',
-  ].join('\n');
+  );
+  return lines.join('\n');
 }
 
 function buildCustomInstructions(persona: import('../persona/types').Persona): string {
@@ -177,6 +209,26 @@ function mapToolCallToAction(toolName: string, input: unknown): Action {
   const args = (input ?? {}) as Record<string, unknown>;
   if (toolName === 'goto' && typeof args.url === 'string') return { kind: 'navigate', url: args.url };
   return { kind: 'act', instruction: humanizeToolCall(toolName, args) };
+}
+
+export function sameOrigin(a: string, b: string): boolean {
+  try {
+    return new URL(a).origin === new URL(b).origin;
+  } catch {
+    return false;
+  }
+}
+
+export function buildAuthStep(username: string, loginUrl: string): Step {
+  return {
+    index: 0,
+    url: loginUrl,
+    bubble: '',
+    narration: `Bud signed in as ${username}`,
+    reaction: { emotion: 'neutral', intensity: 0 },
+    action: { kind: 'auth', username },
+    actionResult: 'ok',
+  };
 }
 
 /**

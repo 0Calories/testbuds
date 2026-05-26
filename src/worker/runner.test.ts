@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { humanizeToolCall } from './runner';
+import { humanizeToolCall, buildAuthStep, framedInstruction, sameOrigin } from './runner';
 
 describe('humanizeToolCall', () => {
   it('describes a screenshot without args', () => {
@@ -36,5 +36,67 @@ describe('humanizeToolCall', () => {
     expect(out).toBe('exotic_tool');
     expect(out).not.toContain('{');
     expect(out).not.toContain('[');
+  });
+});
+
+describe('buildAuthStep', () => {
+  it('produces a synthetic step #0 with no emotion bubble', () => {
+    const step = buildAuthStep('bud@testbuds.dev', 'https://app.example.com/login');
+    expect(step.index).toBe(0);
+    expect(step.url).toBe('https://app.example.com/login');
+    expect(step.action.kind).toBe('auth');
+    expect(step.action.username).toBe('bud@testbuds.dev');
+    expect(step.bubble).toBe('');
+    expect(step.narration).toContain('bud@testbuds.dev');
+    expect(step.reaction.emotion).toBe('neutral');
+    expect(step.reaction.intensity).toBe(0);
+    expect(step.actionResult).toBe('ok');
+  });
+
+  it('does not leak any password material into the step', () => {
+    const step = buildAuthStep('bud@testbuds.dev', 'https://app.example.com/login');
+    const json = JSON.stringify(step);
+    expect(json).not.toContain('password');
+    expect(json).not.toContain('Password');
+  });
+});
+
+describe('framedInstruction', () => {
+  it('omits the auth banner when no test-credential connection is present', () => {
+    const text = framedInstruction('Decide whether to sign up.');
+    expect(text).not.toContain('ALREADY SIGNED IN');
+    expect(text).toContain('Decide whether to sign up.');
+  });
+
+  it('prepends an auth banner when the run is authed', () => {
+    const text = framedInstruction('Try the dashboard.', true);
+    expect(text).toContain('ALREADY SIGNED IN');
+    expect(text).toContain('Do NOT try to log in or sign up');
+    expect(text).toContain('Try the dashboard.');
+  });
+
+  it('does not include the username or password in the instruction', () => {
+    const text = framedInstruction('Goal here.', true);
+    expect(text).not.toContain('bud@testbuds.dev');
+    expect(text).not.toContain('password');
+  });
+});
+
+describe('sameOrigin', () => {
+  it('matches identical origins regardless of path', () => {
+    expect(sameOrigin('https://app.example.com/dashboard', 'https://app.example.com/billing')).toBe(true);
+  });
+
+  it('rejects different subdomains', () => {
+    expect(sameOrigin('https://app.example.com/dashboard', 'https://example.com/')).toBe(false);
+  });
+
+  it('rejects different schemes', () => {
+    expect(sameOrigin('https://example.com/', 'http://example.com/')).toBe(false);
+  });
+
+  it('returns false for malformed URLs', () => {
+    expect(sameOrigin('not a url', 'https://example.com/')).toBe(false);
+    expect(sameOrigin('https://example.com/', '')).toBe(false);
   });
 });

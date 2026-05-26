@@ -3,7 +3,7 @@ import { readFileSync, mkdtempSync, existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { spawn, type ChildProcess } from 'node:child_process';
-import { chromium } from 'playwright';
+import { chromium, type Browser as PlaywrightBrowser, type Page as PlaywrightPage } from 'playwright';
 
 // Stagehand v3 looks at CHROME_PATH to locate the Chromium binary. Playwright's
 // own bundled Chromium discovery (via PLAYWRIGHT_BROWSERS_PATH) gives us the
@@ -154,8 +154,18 @@ export interface StagehandHostInput {
 
 export interface StagehandHostHandle {
   stagehand: Stagehand;
-  /** The V3Page wrapper — Stagehand-specific, not a Playwright Page. */
+  /** The V3Page wrapper — Stagehand-specific, not a real Playwright Page. */
   page: V3Page;
+  /**
+   * A real Playwright Page attached to the SAME Chromium via CDP. Use this when
+   * you need full Playwright primitives (locator, getByRole, fill, click, etc.)
+   * that V3Page either doesn't expose or implements with different semantics
+   * (e.g. its `locator()` parses selectors as xpath rather than CSS).
+   *
+   * The two pages reference the same tab — navigation, cookies, and DOM state
+   * are shared. Close them in reverse order via `close()`.
+   */
+  playwrightPage: PlaywrightPage;
   close: () => Promise<void>;
 }
 
@@ -215,11 +225,27 @@ export async function launchStagehandHost(input: StagehandHostInput): Promise<St
     }
   });
 
+  // Attach a SECOND client — real Playwright — to the same Chromium via CDP.
+  // Stagehand v3's V3Page wraps a Playwright Page but its locator() doesn't
+  // speak Playwright's selector engine (compound CSS / :has-text / getByRole
+  // all fail). The auth pre-flight needs real Playwright semantics; the agent
+  // loop keeps using V3Page through `stagehand.agent(...)`. Both clients see
+  // the same tab and shared session state.
+  const playwrightBrowser: PlaywrightBrowser = await chromium.connectOverCDP(cdpUrl);
+  const pwContext = playwrightBrowser.contexts()[0];
+  if (!pwContext) throw new Error('No Playwright BrowserContext available via CDP');
+  let playwrightPage = pwContext.pages()[0];
+  if (!playwrightPage) {
+    playwrightPage = await pwContext.waitForEvent('page', { timeout: 5000 });
+  }
+
   return {
     stagehand,
     page,
+    playwrightPage,
     close: async () => {
       try { await stagehand.close(); } catch { /* swallow */ }
+      try { await playwrightBrowser.close(); } catch { /* swallow */ }
       chrome.kill();
     },
   };

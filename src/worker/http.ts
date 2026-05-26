@@ -2,10 +2,15 @@ import { createServer, type Server, type IncomingMessage, type ServerResponse } 
 import type { Store, RunRecord } from './store';
 import type { Orchestrator } from './orchestrator';
 import { getPersona } from '../persona/library';
+import type { Connection } from '../connection/types';
 
 /** Attach the full Persona object so the web UI can read `run.persona.{name,costume}`. */
-function hydrateRun(run: RunRecord): RunRecord & { persona: ReturnType<typeof getPersona> } {
-  return { ...run, persona: getPersona(run.personaSlug) };
+function hydrateRun(run: RunRecord, orchestrator: Orchestrator) {
+  return {
+    ...run,
+    persona: getPersona(run.personaSlug),
+    authedAs: orchestrator.getAuthedAs(run.id),
+  };
 }
 
 export interface HttpDeps {
@@ -41,18 +46,35 @@ async function handle(req: IncomingMessage, res: ServerResponse, deps: HttpDeps)
     if (!body || typeof body.personaSlug !== 'string' || typeof body.targetUrl !== 'string' || typeof body.goal !== 'string') {
       return json(res, 400, { error: 'personaSlug, targetUrl, goal required' });
     }
+    const hasAnyCred = body.loginUrl !== undefined || body.username !== undefined || body.password !== undefined;
+    const hasAllCreds =
+      typeof body.loginUrl === 'string' && body.loginUrl.length > 0 &&
+      typeof body.username === 'string' && body.username.length > 0 &&
+      typeof body.password === 'string' && body.password.length > 0;
+    if (hasAnyCred && !hasAllCreds) {
+      return json(res, 400, { error: 'loginUrl, username, and password must all be provided together' });
+    }
+    const connection: Connection | undefined = hasAllCreds
+      ? {
+          mode: 'test-credential',
+          loginUrl: body.loginUrl as string,
+          username: body.username as string,
+          password: body.password as string,
+        }
+      : undefined;
     const viewport = body.viewport === 'mobile' ? 'mobile' : 'desktop';
     const run = deps.orchestrator.startRun({
       personaSlug: body.personaSlug,
       targetUrl: body.targetUrl,
       goal: body.goal,
       viewport,
+      connection,
     });
     return json(res, 200, { run: { ...run, status: 'running' } });
   }
 
   if (method === 'GET' && url === '/runs') {
-    return json(res, 200, { runs: deps.store.listRuns().map(hydrateRun) });
+    return json(res, 200, { runs: deps.store.listRuns().map((r) => hydrateRun(r, deps.orchestrator)) });
   }
 
   const stopMatch = url.match(RUN_ID_STOP);
@@ -68,7 +90,7 @@ async function handle(req: IncomingMessage, res: ServerResponse, deps: HttpDeps)
     const id = runMatch[1]!;
     const run = deps.store.getRun(id);
     if (!run) return json(res, 404, { error: 'Run not found' });
-    return json(res, 200, { run: hydrateRun(run), steps: deps.store.getRunSteps(id) });
+    return json(res, 200, { run: hydrateRun(run, deps.orchestrator), steps: deps.store.getRunSteps(id) });
   }
 
   json(res, 404, { error: 'Not found' });

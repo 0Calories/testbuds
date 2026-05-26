@@ -14,15 +14,37 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'targetUrl and goal are required' }, { status: 400 });
   }
 
+  // All-or-none rule for credentials. The form mirrors this; we revalidate
+  // here so a malformed direct API call gets a clean 400 instead of round-
+  // tripping to the worker. `hasAnyCred` treats "present at all" (including
+  // empty string) as a signal — matching the worker's stricter check — so a
+  // direct API call sending `loginUrl: ""` with the other two filled is
+  // caught here as partial rather than silently dropped.
+  const hasAnyCred = body.loginUrl !== undefined || body.username !== undefined || body.password !== undefined;
+  const hasAllCreds = !!(body.loginUrl && body.username && body.password);
+  if (hasAnyCred && !hasAllCreds) {
+    return NextResponse.json(
+      { error: 'loginUrl, username, and password must all be provided together' },
+      { status: 400 },
+    );
+  }
+
+  const forwarded: Record<string, unknown> = {
+    personaSlug: body.personaSlug,
+    targetUrl: body.targetUrl,
+    goal: body.goal,
+    viewport: body.viewport === 'mobile' ? 'mobile' : 'desktop',
+  };
+  if (hasAllCreds) {
+    forwarded.loginUrl = body.loginUrl;
+    forwarded.username = body.username;
+    forwarded.password = body.password;
+  }
+
   const res = await fetch(`${WORKER}/runs`, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({
-      personaSlug: body.personaSlug,
-      targetUrl: body.targetUrl,
-      goal: body.goal,
-      viewport: body.viewport === 'mobile' ? 'mobile' : 'desktop',
-    }),
+    body: JSON.stringify(forwarded),
   }).catch(() => null);
 
   if (!res || !res.ok) {
@@ -39,8 +61,7 @@ export async function POST(request: Request) {
 export async function GET() {
   const res = await fetch(`${WORKER}/runs`).catch(() => null);
   if (!res || !res.ok) return NextResponse.json({ runs: [] });
-  const json = (await res.json()) as { runs: Array<{ id: string; personaSlug: string; targetUrl: string; viewport: string; startedAt: number; status: string }> };
-  // Match the previous shape — the page-list UI consumes `personaName`.
+  const json = (await res.json()) as { runs: Array<{ id: string; personaSlug: string; targetUrl: string; viewport: string; startedAt: number; status: string; authedAs?: string }> };
   const runs = json.runs.map((r) => ({
     id: r.id,
     status: r.status,
@@ -49,6 +70,7 @@ export async function GET() {
     targetUrl: r.targetUrl,
     viewport: r.viewport,
     startedAt: r.startedAt,
+    authedAs: r.authedAs,
   }));
   return NextResponse.json({ runs });
 }

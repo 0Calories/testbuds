@@ -30,4 +30,14 @@ describe('StepOutputSchema', () => {
     const bad = { ...validStepOutput, reaction: { emotion: 'curious', intensity: 2 } };
     expect(() => StepOutputSchema.parse(bad)).toThrow();
   });
+
+  it('accepts an auth action with a username', () => {
+    const auth = {
+      ...validStepOutput,
+      action: { kind: 'auth', username: 'bud@testbuds.dev' },
+    };
+    const parsed = StepOutputSchema.parse(auth);
+    expect(parsed.action.kind).toBe('auth');
+    expect(parsed.action.username).toBe('bud@testbuds.dev');
+  });
 });

@@ -16,13 +16,16 @@ export type Reaction = z.infer<typeof ReactionSchema>;
 // tolerates missing optionals degrades gracefully, where a strict union would
 // throw and crash a whole multi-step run over one slightly-off field. It also
 // mirrors the flat JSON Schema of the `emit_step` Anthropic tool (see reason.ts).
-// Per-`kind` field usage: `act` -> instruction, `navigate` -> url, `finish` -> outcome/reason.
+// Per-`kind` field usage: `act` -> instruction, `navigate` -> url,
+// `finish` -> outcome/reason, `auth` -> username (synthetic step emitted by the
+// runner after pre-auth; never an LLM tool call).
 export const ActionSchema = z.object({
-  kind: z.enum(['act', 'navigate', 'finish']),
+  kind: z.enum(['act', 'navigate', 'finish', 'auth']),
   instruction: z.string().optional(),
   url: z.string().optional(),
   outcome: z.enum(['completed', 'gave_up']).optional(),
   reason: z.string().optional(),
+  username: z.string().optional(),
 });
 export type Action = z.infer<typeof ActionSchema>;
 
