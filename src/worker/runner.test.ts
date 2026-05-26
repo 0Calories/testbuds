@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { humanizeToolCall, buildAuthStep, framedInstruction } from './runner';
+import { humanizeToolCall, buildAuthStep, framedInstruction, sameOrigin } from './runner';
 
 describe('humanizeToolCall', () => {
   it('describes a screenshot without args', () => {
@@ -79,5 +79,24 @@ describe('framedInstruction', () => {
     const text = framedInstruction('Goal here.', true);
     expect(text).not.toContain('bud@testbuds.dev');
     expect(text).not.toContain('password');
+  });
+});
+
+describe('sameOrigin', () => {
+  it('matches identical origins regardless of path', () => {
+    expect(sameOrigin('https://app.example.com/dashboard', 'https://app.example.com/billing')).toBe(true);
+  });
+
+  it('rejects different subdomains', () => {
+    expect(sameOrigin('https://app.example.com/dashboard', 'https://example.com/')).toBe(false);
+  });
+
+  it('rejects different schemes', () => {
+    expect(sameOrigin('https://example.com/', 'http://example.com/')).toBe(false);
+  });
+
+  it('returns false for malformed URLs', () => {
+    expect(sameOrigin('not a url', 'https://example.com/')).toBe(false);
+    expect(sameOrigin('https://example.com/', '')).toBe(false);
   });
 });

@@ -34,21 +34,29 @@ export function makeWorkerRunner(): RunRunner {
       const innerAbort = new AbortController();
       abortSignal.addEventListener('abort', () => innerAbort.abort());
 
-      if (connection) {
-        // Use the real Playwright Page (attached via CDP alongside Stagehand).
-        // V3Page's locator() doesn't speak the Playwright selector engine, so
-        // any non-trivial CSS — compound, :has-text, getByRole — fails. The
-        // Playwright client sees the same tab; cookies set during sign-in
-        // persist when Stagehand takes over.
-        await establishAuth(host.playwrightPage, connection);
-        if (connection.mode === 'test-credential') {
-          const authStep = buildAuthStep(connection.username, connection.loginUrl);
-          steps.push(authStep);
-          emitStep(authStep);
-        }
+      // Use the real Playwright Page (attached via CDP alongside Stagehand).
+      // V3Page's locator() doesn't speak the Playwright selector engine, so
+      // any non-trivial CSS — compound, :has-text, getByRole — fails. The
+      // Playwright client sees the same tab; cookies set during sign-in
+      // persist when Stagehand takes over.
+      const authed = connection ? await establishAuth(host.playwrightPage, connection) : false;
+
+      if (authed && connection?.mode === 'test-credential') {
+        const authStep = buildAuthStep(connection.username, connection.loginUrl);
+        steps.push(authStep);
+        emitStep(authStep);
       }
 
-      await host.page.goto(run.targetUrl);
+      // Decide whether to navigate to the user-supplied targetUrl:
+      // - Public / auth failed → yes, navigate (persona reacts to whatever's there).
+      // - Authed and targetUrl is same-origin as the post-login URL → yes (user
+      //   targeted a specific page inside the app, e.g. /billing).
+      // - Authed and targetUrl is a different origin → NO. The marketing site
+      //   the user typed in the form is not where they want the bud to start;
+      //   the post-login destination (typically the app dashboard) is.
+      if (!authed || sameOrigin(host.playwrightPage.url(), run.targetUrl)) {
+        await host.page.goto(run.targetUrl);
+      }
 
       const reactTool = makeReactTool((r) => { pendingReact = r; });
       const finishTool = makeFinishTool((f) => { finalDecision = f; innerAbort.abort(); });
@@ -201,6 +209,14 @@ function mapToolCallToAction(toolName: string, input: unknown): Action {
   const args = (input ?? {}) as Record<string, unknown>;
   if (toolName === 'goto' && typeof args.url === 'string') return { kind: 'navigate', url: args.url };
   return { kind: 'act', instruction: humanizeToolCall(toolName, args) };
+}
+
+export function sameOrigin(a: string, b: string): boolean {
+  try {
+    return new URL(a).origin === new URL(b).origin;
+  } catch {
+    return false;
+  }
 }
 
 export function buildAuthStep(username: string, loginUrl: string): Step {

@@ -5,9 +5,15 @@ type Call = { kind: string; args: unknown[] };
 
 function fakePage(opts: {
   failOn?: 'goto' | 'fill-email' | 'fill-password' | 'click';
+  /** URL the page reports AFTER a successful submit. Defaults to a post-login URL. */
+  postSubmitUrl?: string;
+  /** URL the page reports AFTER goto but BEFORE submit (i.e. still on login). */
+  loginUrl?: string;
 } = {}) {
   const calls: Call[] = [];
   const fillCalls: { selector: string; value: string }[] = [];
+  let currentUrl = '';
+  let submitClicked = false;
 
   function locator(selector: string) {
     return {
@@ -33,6 +39,9 @@ function fakePage(opts: {
           async click() {
             if (opts.failOn === 'click') throw new Error('click failed');
             calls.push({ kind: 'click', args: [] });
+            submitClicked = true;
+            // Simulate post-submit navigation by flipping the reported URL.
+            currentUrl = opts.postSubmitUrl ?? 'https://app.example.com/dashboard';
           },
         };
       },
@@ -44,6 +53,10 @@ function fakePage(opts: {
       async goto(url: string, _o?: unknown) {
         if (opts.failOn === 'goto') throw new Error('goto failed');
         calls.push({ kind: 'goto', args: [url] });
+        currentUrl = url;
+      },
+      url() {
+        return currentUrl;
       },
       locator,
       getByRole,
@@ -53,24 +66,29 @@ function fakePage(opts: {
     } as unknown as Parameters<typeof establishAuth>[0],
     calls,
     fillCalls,
+    get submitClicked() { return submitClicked; },
   };
 }
 
 describe('establishAuth', () => {
-  it('does nothing for a public connection', async () => {
+  it('returns false for a public connection and does nothing', async () => {
     const { page, calls } = fakePage();
-    await establishAuth(page, { mode: 'public' });
+    const result = await establishAuth(page, { mode: 'public' });
+    expect(result).toBe(false);
     expect(calls).toEqual([]);
   });
 
-  it('navigates, fills email + password, and clicks submit', async () => {
-    const { page, calls, fillCalls } = fakePage();
-    await establishAuth(page, {
+  it('returns true when sign-in completes and the URL navigates away', async () => {
+    const { page, calls, fillCalls } = fakePage({
+      postSubmitUrl: 'https://app.example.com/dashboard',
+    });
+    const result = await establishAuth(page, {
       mode: 'test-credential',
       loginUrl: 'https://app.example.com/login',
       username: 'agent@test.com',
       password: 'pw123',
     });
+    expect(result).toBe(true);
     expect(calls[0]).toEqual({ kind: 'goto', args: ['https://app.example.com/login'] });
     expect(fillCalls).toHaveLength(2);
     expect(fillCalls.find((c) => c.selector.includes('"email"'))?.value).toBe('agent@test.com');
@@ -78,17 +96,32 @@ describe('establishAuth', () => {
     expect(calls.some((c) => c.kind === 'click')).toBe(true);
   });
 
-  it('swallows interaction errors so the agent loop can continue', async () => {
+  it('returns false when the URL is still on loginUrl after submit', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    // postSubmitUrl matches the loginUrl prefix — simulates credentials rejected
+    // (form stays on the login page with an inline error).
+    const { page } = fakePage({ postSubmitUrl: 'https://app.example.com/login?error=invalid' });
+    const result = await establishAuth(page, {
+      mode: 'test-credential',
+      loginUrl: 'https://app.example.com/login',
+      username: 'agent@test.com',
+      password: 'wrong',
+    });
+    expect(result).toBe(false);
+    expect(warn).toHaveBeenCalled();
+    warn.mockRestore();
+  });
+
+  it('returns false and swallows interaction errors so the agent loop can continue', async () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
     const { page } = fakePage({ failOn: 'fill-password' });
-    await expect(
-      establishAuth(page, {
-        mode: 'test-credential',
-        loginUrl: 'https://app.example.com/login',
-        username: 'agent@test.com',
-        password: 'pw123',
-      }),
-    ).resolves.toBeUndefined();
+    const result = await establishAuth(page, {
+      mode: 'test-credential',
+      loginUrl: 'https://app.example.com/login',
+      username: 'agent@test.com',
+      password: 'pw123',
+    });
+    expect(result).toBe(false);
     expect(warn).toHaveBeenCalled();
     warn.mockRestore();
   });
