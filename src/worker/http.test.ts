@@ -5,6 +5,7 @@ import { join } from 'node:path';
 import { Store } from './store';
 import { Orchestrator } from './orchestrator';
 import { buildHttpServer } from './http';
+import type { Connection } from '../connection/types';
 
 const PORT = 5280 + Math.floor(Math.random() * 100);
 const BASE = `http://localhost:${PORT}`;
@@ -77,16 +78,20 @@ describe('HTTP routes — credentials', () => {
   let orch: Orchestrator;
   let server: ReturnType<typeof buildHttpServer>;
   let base: string;
-  let capturedConnection: unknown;
+  let capturedConnection: Connection | undefined;
+  let runnerCalled: Promise<void>;
+  let resolveRunnerCalled: () => void;
 
   beforeEach(async () => {
     dir = mkdtempSync(join(tmpdir(), 'testbuds-http-creds-'));
     store = new Store({ dataDir: dir });
     capturedConnection = undefined;
+    runnerCalled = new Promise<void>((r) => { resolveRunnerCalled = r; });
     orch = new Orchestrator({
       store,
       runRunner: async (input) => {
         capturedConnection = input.connection;
+        resolveRunnerCalled();
         return { decision: 'would_buy', summary: '' } as never;
       },
     });
@@ -119,12 +124,12 @@ describe('HTTP routes — credentials', () => {
       }),
     });
     expect(res.status).toBe(200);
-    // Give the fire-and-forget runLoop a tick to call runRunner.
-    await new Promise((r) => setTimeout(r, 30));
+    await runnerCalled;
     expect(capturedConnection).toMatchObject({
       mode: 'test-credential',
       loginUrl: 'https://app.example.com/login',
       username: 'bud@testbuds.dev',
+      password: 'pw123',
     });
   });
 
@@ -146,6 +151,23 @@ describe('HTTP routes — credentials', () => {
     expect(json.error).toMatch(/loginUrl.*username.*password/i);
   });
 
+  it('rejects an empty-string field as missing', async () => {
+    const res = await fetch(`${base}/runs`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        personaSlug: 'skeptical-bargain-hunter',
+        targetUrl: 'https://app.example.com',
+        goal: 'evaluate',
+        viewport: 'desktop',
+        loginUrl: '',
+        username: 'bud@testbuds.dev',
+        password: 'pw123',
+      }),
+    });
+    expect(res.status).toBe(400);
+  });
+
   it('omits Connection when no credentials are provided (existing behavior)', async () => {
     const res = await fetch(`${base}/runs`, {
       method: 'POST',
@@ -158,7 +180,7 @@ describe('HTTP routes — credentials', () => {
       }),
     });
     expect(res.status).toBe(200);
-    await new Promise((r) => setTimeout(r, 30));
+    await runnerCalled;
     expect(capturedConnection).toBeUndefined();
   });
 });
