@@ -101,6 +101,6 @@ async function readJson(req: IncomingMessage): Promise<unknown> {
 }
 
 function json(res: ServerResponse, status: number, body: unknown): void {
-  res.writeHead(status, { 'content-type': 'application/json', 'connection': 'close' });
+  res.writeHead(status, { 'content-type': 'application/json' });
   res.end(JSON.stringify(body));
 }

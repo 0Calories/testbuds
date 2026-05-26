@@ -72,15 +72,14 @@ describe('HTTP routes', () => {
 });
 
 describe('HTTP routes — credentials', () => {
-  const PORT_C = 5380 + Math.floor(Math.random() * 100);
-  const BASE_C = `http://localhost:${PORT_C}`;
   let dir: string;
   let store: Store;
   let orch: Orchestrator;
   let server: ReturnType<typeof buildHttpServer>;
+  let base: string;
   let capturedConnection: unknown;
 
-  beforeEach(() => {
+  beforeEach(async () => {
     dir = mkdtempSync(join(tmpdir(), 'testbuds-http-creds-'));
     store = new Store({ dataDir: dir });
     capturedConnection = undefined;
@@ -91,7 +90,12 @@ describe('HTTP routes — credentials', () => {
         return { decision: 'would_buy', summary: '' } as never;
       },
     });
-    server = buildHttpServer({ port: PORT_C, store, orchestrator: orch });
+    // Use port 0 so the OS assigns a fresh, never-collided port per test.
+    // Avoids keep-alive socket reuse across the same fixed port between tests.
+    server = buildHttpServer({ port: 0, store, orchestrator: orch });
+    await new Promise<void>((r) => server.once('listening', () => r()));
+    const addr = server.address() as { port: number };
+    base = `http://localhost:${addr.port}`;
   });
 
   afterEach(async () => {
@@ -101,7 +105,7 @@ describe('HTTP routes — credentials', () => {
   });
 
   it('builds a test-credential Connection when all three credentials are provided', async () => {
-    const res = await fetch(`${BASE_C}/runs`, {
+    const res = await fetch(`${base}/runs`, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({
@@ -125,7 +129,7 @@ describe('HTTP routes — credentials', () => {
   });
 
   it('rejects partial credentials with 400', async () => {
-    const res = await fetch(`${BASE_C}/runs`, {
+    const res = await fetch(`${base}/runs`, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({
@@ -143,7 +147,7 @@ describe('HTTP routes — credentials', () => {
   });
 
   it('omits Connection when no credentials are provided (existing behavior)', async () => {
-    const res = await fetch(`${BASE_C}/runs`, {
+    const res = await fetch(`${base}/runs`, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({
