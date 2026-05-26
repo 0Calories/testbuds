@@ -97,4 +97,29 @@ describe('synthesizeVerdict', () => {
       ),
     ).rejects.toThrow();
   });
+
+  it('omits the synthetic auth step from the synthesis prompt', async () => {
+    const create = vi.fn().mockResolvedValue({
+      content: [{ type: 'tool_use', name: 'emit_verdict', input: verdictInput }],
+    });
+    const anthropic = { messages: { create } } as unknown as Anthropic;
+    const AUTH_URL = 'https://app.example.com/login';
+    const AUTH_USER = 'bud@testbuds.dev';
+    const stepsWithAuth: Step[] = [
+      {
+        index: 0, url: AUTH_URL, bubble: '', narration: `Bud signed in as ${AUTH_USER}`,
+        reaction: { emotion: 'neutral', intensity: 0 },
+        action: { kind: 'auth', username: AUTH_USER },
+        actionResult: 'ok',
+      },
+      ...steps.map((s) => ({ ...s, index: s.index + 1 })),
+    ];
+    await synthesizeVerdict(
+      { persona: getPersona('skeptical-bargain-hunter')!, goal: 'g', steps: stepsWithAuth },
+      { anthropic },
+    );
+    const prompt = JSON.stringify(create.mock.calls[0]);
+    expect(prompt).not.toContain(AUTH_URL);
+    expect(prompt).not.toContain(AUTH_USER);
+  });
 });

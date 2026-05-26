@@ -134,6 +134,11 @@ const EMIT_VERDICT_TOOL = {
 
 function buildTranscript(steps: Step[]): string {
   return steps
+    // Drop synthetic auth steps — they're plumbing, not persona narration.
+    // Including them would put loginUrl and the test-account username in the
+    // synthesis prompt, and would invite the verdict LLM to comment on the
+    // sign-in event as if it were friction.
+    .filter((s) => s.action.kind !== 'auth')
     .map((s) => {
       const action =
         s.action.kind === 'finish'
