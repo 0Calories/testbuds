@@ -11,9 +11,6 @@ importers:
       '@browserbasehq/stagehand':
         specifier: ^3.5.0
         version: 3.5.0(zod@4.4.3)
-      dotenv:
-        specifier: ^17.4.2
-        version: 17.4.2
       steel-sdk:
         specifier: ^0.18.0
         version: 0.18.0
@@ -626,10 +623,6 @@ packages:
 
   devtools-protocol@0.0.1464554:
     resolution: {integrity: sha512-CAoP3lYfwAGQTaAXYvA6JZR0fjGUb7qec1qf4mToyoH2TZgUFeIqYcjh6f9jNuhHfuZiEdH+PONHYrLhRQX6aw==}
-
-  dotenv@17.4.2:
-    resolution: {integrity: sha512-nI4U3TottKAcAD9LLud4Cb7b2QztQMUEfHbvhTH09bqXTxnSie8WnjPALV/WMCrJZ6UV/qHJ6L03OqO3LcdYZw==}
-    engines: {node: '>=12'}
 
   dunder-proto@1.0.1:
     resolution: {integrity: sha512-KIN/nDJBQRcXw0MLVhZE9iQHmG68qAVIBg9CqmUYjmQIhgij9U5MFvrqkUL5FbtyyzZuOeOt0zdeRe4UY7ct+A==}
@@ -1808,8 +1801,6 @@ snapshots:
   depd@2.0.0: {}
 
   devtools-protocol@0.0.1464554: {}
-
-  dotenv@17.4.2: {}
 
   dunder-proto@1.0.1:
     dependencies:
