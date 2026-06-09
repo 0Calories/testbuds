@@ -1,3 +1,4 @@
+import { Stagehand } from '@browserbasehq/stagehand';
 import Steel from 'steel-sdk';
 
 const apiKey = process.env.STEEL_API_KEY;
@@ -8,17 +9,18 @@ if (!apiKey) {
 	);
 }
 
-const client = new Steel({
-	steelAPIKey: apiKey,
-});
+export async function runSteelTest() {
+	const client = new Steel({
+		steelAPIKey: apiKey,
+	});
+	const session = await client.sessions.create({});
 
-async function main() {
-	const session = await client.sessions.create();
-	console.log('Session created:', session.id);
-	console.log(`View live session at: ${session.sessionViewerUrl}`);
-
-	await client.sessions.release(session.id);
-	console.log('Session released');
+	const stagehand = new Stagehand({
+		env: 'LOCAL',
+		localBrowserLaunchOptions: {
+			cdpUrl: `${session.websocketUrl}&apiKey=${apiKey}`,
+		},
+		model: { modelName: 'anthropic/claude-sonnet-4-6', apiKey },
+	});
+	await stagehand.init();
 }
-
-main().catch(console.error);
