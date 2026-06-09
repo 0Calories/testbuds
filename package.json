@@ -23,6 +23,7 @@
 	},
 	"dependencies": {
 		"@browserbasehq/stagehand": "^3.5.0",
-		"steel-sdk": "^0.18.0"
+		"steel-sdk": "^0.18.0",
+		"zod": "^4.4.3"
 	}
 }

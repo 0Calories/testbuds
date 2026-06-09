@@ -14,6 +14,9 @@ importers:
       steel-sdk:
         specifier: ^0.18.0
         version: 0.18.0
+      zod:
+        specifier: ^4.4.3
+        version: 4.4.3
     devDependencies:
       '@biomejs/biome':
         specifier: 2.4.16

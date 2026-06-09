@@ -1,24 +1,33 @@
-import Steel from 'steel-sdk';
-
-const apiKey = process.env.STEEL_API_KEY;
-
-if (!apiKey) {
-	throw new Error(
-		'STEEL_API_KEY is not set —check --env-file ordering / .env.local',
-	);
-}
-
-const client = new Steel({
-	steelAPIKey: apiKey,
-});
+import { Stagehand } from '@browserbasehq/stagehand';
+import { z } from 'zod';
 
 async function main() {
-	const session = await client.sessions.create();
-	console.log('Session created:', session.id);
-	console.log(`View live session at: ${session.sessionViewerUrl}`);
+	const stagehand = new Stagehand({
+		env: 'LOCAL',
+		model: 'anthropic/claude-sonnet-4-6',
+		localBrowserLaunchOptions: {
+			headless: false, // Show browser window
+			devtools: true, // Open developer tools
+			viewport: { width: 1280, height: 720 },
+		},
+	});
 
-	await client.sessions.release(session.id);
-	console.log('Session released');
+	await stagehand.init();
+	const page = stagehand.context.pages()[0];
+
+	await page.goto('https://gethibana.com');
+
+	// Act on the page
+	await stagehand.act('Click the login button');
+
+	// Extract structured data
+	const pageText = await stagehand.extract();
+
+	console.log(pageText);
+	await stagehand.close();
 }
 
-main().catch(console.error);
+main().catch((err) => {
+	console.error(err);
+	process.exit(1);
+});
