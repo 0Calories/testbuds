@@ -17,3 +17,9 @@ npm-debug.log*
 .DS_Store
 .idea/
 .vscode/
+
+# Local Run Artifacts
+.testbuds/
+
+# AI workflow Artifacts
+progress.txt
